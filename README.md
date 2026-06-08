@@ -1,5 +1,7 @@
 # Automatización de Alarmas: Jira a Slack
 
+🔗 **Navegación Rápida:** [📖 Ver Changelog (Historial de Versiones)](CHANGELOG.md) | [🤝 Guía de Contribución](CONTRIBUTING.md)
+
 Este proyecto es un script de **Google Apps Script (GAS)** que se encarga de extraer de forma automática las alarmas (tickets) generadas en Jira, procesarlas, cruzarlas con la base de datos de clientes/PODs alojada en Google Sheets, y enviar un resumen consolidado por canal de Slack.
 
 ## 🏗️ Arquitectura del Proyecto
