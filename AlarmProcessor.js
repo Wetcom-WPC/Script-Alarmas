@@ -27,19 +27,19 @@ const AlarmProcessor = {
 
         let { alarma: alarmaProcesada, summaryResto } = this._extraerDatosAlarma(issue.summary, mappings.mapaAlarmas, warnings);
         
-        let target = this._extraerTarget(issue.description, issue.summary);
-        if (target === 'Target no encontrado') {
+        let origen = this._extraerOrigen(issue.description, issue.summary);
+        if (origen.target === 'Target no encontrado') {
           warnings.push(`Target no encontrado en la descripción/summary "${issue.summary}"`);
-          target = 'Target Desconocido';
+          origen.target = 'Target Desconocido';
         }
 
-        const formato = this._formatearAlarmaPorTipo(alarmaProcesada, summaryResto, target, issue.description);
+        const formato = this._formatearAlarmaPorTipo(alarmaProcesada, summaryResto, origen.target, issue.description);
         if (!formato.incluir) return; // Si debe excluirse (Ej. Falso positivo) no hace nada
         
-        target = formato.nuevoTarget;
+        origen.target = formato.nuevoTarget;
         summaryResto = formato.nuevoSummary;
 
-        this._agruparMensaje(pod, cliente, alarmaProcesada, target, issue.created, mensajesProcesados, warnings, summaryResto);
+        this._agruparMensaje(pod, cliente, alarmaProcesada, JSON.stringify(origen), issue.created, mensajesProcesados, warnings, summaryResto);
 
       } catch (err) {
         // index + 2 por retrocompatibilidad con logs antiguos basados en row (fila de excel)
@@ -174,26 +174,32 @@ const AlarmProcessor = {
     return { alarmaNombre, summaryResto };
   },
 
-  _extraerTarget: function(description, summary) {
-    const targetMatch = description.match(/Target:?\s*(.*?)(?=\s*Previous Status|\n|$)/i);
-    if (targetMatch && targetMatch[1].trim() !== '') {
-      return targetMatch[1].trim();
+  _extraerOrigen: function(description, summary) {
+    const origen = { vCenter: 'Desconocido', cluster: 'Desconocido', target: 'Target no encontrado' };
+
+    const vCenterMatch = description.match(/vCenter\s*:?\s*(.*?)(?=\n|$)/i);
+    if (vCenterMatch && vCenterMatch[1].trim() !== '') {
+      origen.vCenter = vCenterMatch[1].trim();
     }
 
-    const clusterMatch = description.match(/Cluster Name\s*:?\s*(\S+)/i);
-    if (clusterMatch) {
-      return clusterMatch[1].trim();
+    const clusterMatch = description.match(/Cluster Name\s*:?\s*(.*?)(?=\n|$)/i);
+    if (clusterMatch && clusterMatch[1].trim() !== '') {
+      origen.cluster = clusterMatch[1].trim();
     }
-    
-    if (summary) {
+
+    const targetMatch = description.match(/Target:?\s*(.*?)(?=\s*Previous Status|\n|$)/i);
+    if (targetMatch && targetMatch[1].trim() !== '') {
+      origen.target = targetMatch[1].trim();
+    } else if (summary) {
       const summaryMatch = summary.match(/^(.*?)\s+-\s+(?:vSAN|vSphere|Host|Alarm|\[|Lost|Path|Insufficient|Hardware)/i);
-      if (summaryMatch) return summaryMatch[1].trim();
-      
-      const fallbackMatch = summary.match(/^(.+?)\s+-/i);
-      if (fallbackMatch) return fallbackMatch[1].trim();
+      if (summaryMatch) origen.target = summaryMatch[1].trim();
+      else {
+        const fallbackMatch = summary.match(/^(.+?)\s+-/i);
+        if (fallbackMatch) origen.target = fallbackMatch[1].trim();
+      }
     }
     
-    return 'Target no encontrado';
+    return origen;
   },
 
   _formatearAlarmaPorTipo: function(tipoAlarma, summaryResto, target, description) {

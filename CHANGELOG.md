@@ -4,6 +4,15 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y el proyecto se adhiere a [Semantic Versioning](https://semver.org/).
 
+## [7.2.0] - 2026-06-10
+
+### Added
+- **Contexto de Origen Expandido:** Las alarmas ahora extraen explícitamente el `vCenter`, `Cluster` y `Host/Target` directo desde la descripción nativa de Jira.
+- **Jerarquía Visual de Origen:** El bot de Slack ahora indenta y dibuja la tríada de origen (vCenter, Cluster, Host) estructurando mejor la lectura para el NOC en `MessageFormatter.js`.
+
+### Changed
+- Refactorizado el método `_extraerTarget` en `AlarmProcessor.js` hacia `_extraerOrigen`, pasando de devolver un string crudo a devolver un objeto de dominio JSON.
+
 ## [7.1.0] - 2026-06-08
 
 ### Added

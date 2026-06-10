@@ -75,18 +75,27 @@ const MessageFormatter = {
 
       orderedGroupKeys.forEach(key => {
         const group = groupBySummaries[key];
-        group.targets.forEach(target => {
-          detalle += `\t• ${target}\n`;
+        group.targets.forEach(origenStr => {
+          let origen;
+          try {
+             origen = JSON.parse(origenStr);
+          } catch(e) {
+             // Fallback retrocompatibilidad si había strings viejos
+             origen = { vCenter: 'Desconocido', cluster: 'Desconocido', target: origenStr };
+          }
+          detalle += `\to vCenter: ${origen.vCenter}\n`;
+          detalle += `\to Cluster: ${origen.cluster}\n`;
+          detalle += `\to Host/Target: ${origen.target}\n`;
         });
         if (group.summaries.length > 0) {
           group.summaries.forEach(summary => {
             if (summary.indexOf('\n') !== -1) {
               const lines = summary.split('\n');
               for (let i = 0; i < lines.length; i++) {
-                detalle += `\t\t• ${lines[i].trim()}\n`;
+                detalle += `\t\t- ${lines[i].trim()}\n`;
               }
             } else {
-              detalle += `\t\t• ${summary}\n`;
+              detalle += `\t\t- ${summary}\n`;
             }
           });
         }
