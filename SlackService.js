@@ -11,9 +11,7 @@ const SlackService = {
       return;
     }
 
-    const payload = JSON.stringify({ 
-      text: "```\n" + message + "\n```" 
-    });
+    const payload = JSON.stringify(message);
     
     const options = { 
       method: "post", 

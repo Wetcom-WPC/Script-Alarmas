@@ -13,7 +13,7 @@ function onOpen() {
 /**
  * Función interna compartida que procesa todo pero no envía a ningún lado
  */
-function _obtenerMensajeFinal() {
+function _obtenerPayloadsFinales() {
   // 1. Busca las alarmas directamente en Jira (Retorna JSON)
   const issues = JiraService.buscarAlarmas();
 
@@ -27,28 +27,30 @@ function _obtenerMensajeFinal() {
   // 3. Procesa las alarmas cruzando la información con los mappings
   const { mensajesProcesados, errores } = AlarmProcessor.procesarAlarmas(issues, mappings);
   
-  // 4. Formatea el mensaje de Slack agrupando por PODs, Clientes, etc.
-  const mensajeFinal = MessageFormatter.generarMensaje(mensajesProcesados, errores);
+  // 4. Formatea el mensaje de Slack usando Block Kit agrupando por PODs, Clientes, etc.
+  const payloads = MessageFormatter.generarMensaje(mensajesProcesados, errores);
   
-  if (!mensajeFinal || mensajeFinal.trim() === "") {
+  if (!payloads || payloads.length === 0) {
     return { exito: false, mensaje: "Las alarmas obtenidas fueron filtradas/excluidas (ej: Falsos Positivos). No hay nada nuevo para enviar." };
   }
   
-  return { exito: true, mensaje: mensajeFinal };
+  return { exito: true, payloads: payloads };
 }
 
 function disparadorPrincipal_conAPI() {
   try {
-    const resultado = _obtenerMensajeFinal();
+    const resultado = _obtenerPayloadsFinales();
     
     if (!resultado.exito) {
       Logger.log(resultado.mensaje);
       return;
     }
     
-    // 5. Envía el resultado a Slack
-    SlackService.sendNotification(resultado.mensaje);
-    Logger.log("Ejecución finalizada con éxito. Mensaje generado:\n" + resultado.mensaje);
+    // 5. Envía cada payload a Slack
+    resultado.payloads.forEach(payload => {
+      SlackService.sendNotification(payload);
+    });
+    Logger.log(`Ejecución finalizada con éxito. Se enviaron ${resultado.payloads.length} mensajes a Slack.`);
 
   } catch (e) {
     const errorMsg = "Error crítico en el script: " + e.message;
@@ -58,7 +60,7 @@ function disparadorPrincipal_conAPI() {
 
 function disparadorPrincipal_Local() {
   try {
-    const resultado = _obtenerMensajeFinal();
+    const resultado = _obtenerPayloadsFinales();
     const ui = SpreadsheetApp.getUi();
     
     if (!resultado.exito) {
@@ -66,9 +68,21 @@ function disparadorPrincipal_Local() {
       return;
     }
     
-    // Muestra el mensaje en un popup en lugar de Slack
-    ui.alert("Simulación de Ejecución (Local)", resultado.mensaje, ui.ButtonSet.OK);
-    Logger.log("Ejecución local finalizada. Mensaje:\n" + resultado.mensaje);
+    // Genera un modal HTML con el JSON para evitar los límites de caracteres del alert nativo
+    const jsonStr = JSON.stringify(resultado.payloads, null, 2);
+    const htmlContent = `
+      <html>
+        <body style="font-family: monospace; background-color: #f4f4f4; padding: 10px;">
+          <pre style="white-space: pre-wrap; word-wrap: break-word;">${jsonStr}</pre>
+        </body>
+      </html>
+    `;
+    const htmlOutput = HtmlService.createHtmlOutput(htmlContent)
+      .setWidth(800)
+      .setHeight(600);
+      
+    ui.showModalDialog(htmlOutput, `Simulación Local - ${resultado.payloads.length} mensajes Block Kit generados`);
+    Logger.log("Ejecución local finalizada. Revisa el log o la pantalla para el JSON resultante.");
 
   } catch (e) {
     SpreadsheetApp.getUi().alert("Error crítico en el script", e.message, SpreadsheetApp.getUi().ButtonSet.OK);

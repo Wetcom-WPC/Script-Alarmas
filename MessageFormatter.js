@@ -1,46 +1,96 @@
 /**
- * Se encarga de la presentación de los datos (agrupación y conversión a texto para Slack)
+ * Se encarga de la presentación de los datos usando Slack Block Kit
  */
 const MessageFormatter = {
   
   generarMensaje: function(mensajesProcesados, errores) {
-    let mensaje = this._formatearErrores(errores);
+    const payloads = [];
 
-    for (const pod in mensajesProcesados) {
-      if (pod === "WPC") {
-        mensaje += `\nPOD ${pod}\n\n`;
-        mensaje += `@wpc Buenas POD! Les comento que recibimos las siguientes alarmas:\n\n`;
-        for (const cliente in mensajesProcesados[pod]) {
-          const alarmasCliente = mensajesProcesados[pod][cliente];
-          const numAlarmas = Object.keys(alarmasCliente).length;
-          let subject = numAlarmas === 1 
-            ? `Subject: ${Object.keys(alarmasCliente)[0]} - WETCOM - ${cliente}`
-            : `Subject: Múltiples Alarmas - WETCOM - ${cliente}`;
-          
-          const cuerpo = this._procesarClienteWPC(cliente, alarmasCliente);
-          mensaje += subject + "\n\n" + cuerpo + "\n============================================================\n\n";
-        }
-      } else {
-        mensaje += `\nPOD ${pod}\n\n`;
-        mensaje += `\n@pod${pod} Buenas POD! Les comento que recibimos las siguientes alarmas:\n\n`;
-        for (const cliente in mensajesProcesados[pod]) {
-          mensaje += this._procesarCliente(cliente, mensajesProcesados[pod][cliente]);
-        }
-        mensaje += 'Ante esto, les consulto, ¿están al tanto de la/s anomalía/s? ¿desean que le informemos al cliente?\n\n\n';
-        mensaje += '///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////\n\n';
-      }
+    let bloquesErrores = this._formatearErroresBlockKit(errores);
+    if (bloquesErrores.length > 0) {
+      payloads.push({
+        text: "Errores de Ejecución",
+        blocks: bloquesErrores
+      });
     }
 
-    return mensaje;
+    for (const pod in mensajesProcesados) {
+      let blocks = [];
+      
+      blocks.push({
+        type: "header",
+        text: { type: "plain_text", text: `🚨 Alarmas - POD ${pod}`, emoji: true }
+      });
+
+      if (pod === "WPC") {
+        blocks.push({
+          type: "section",
+          text: { type: "mrkdwn", text: "@wpc Buenas POD! Les comento que recibimos las siguientes alarmas:" }
+        });
+      } else {
+        blocks.push({
+          type: "section",
+          text: { type: "mrkdwn", text: `@pod${pod} Buenas POD! Les comento que recibimos las siguientes alarmas:` }
+        });
+      }
+
+      for (const cliente in mensajesProcesados[pod]) {
+        blocks.push({ type: "divider" });
+        blocks.push({
+          type: "header",
+          text: { type: "plain_text", text: `🏢 ${cliente}`, emoji: true }
+        });
+
+        const alarmasBlocks = this._generarDetalleAlarmasBlockKit(mensajesProcesados[pod][cliente]);
+        blocks = blocks.concat(alarmasBlocks);
+      }
+
+      blocks.push({ type: "divider" });
+      if (pod === "WPC") {
+        blocks.push({
+          type: "section",
+          text: { type: "mrkdwn", text: "Ante esto les consulto, ¿están al tanto de las anomalías? ¿Desean que generemos un ticket para analizar la anomalía en profundidad?\n\nAguardamos sus comentarios.\nSaludos cordiales." }
+        });
+      } else {
+        blocks.push({
+          type: "section",
+          text: { type: "mrkdwn", text: "Ante esto, les consulto, ¿están al tanto de la/s anomalía/s? ¿desean que le informemos al cliente?" }
+        });
+      }
+
+      this._chunkBlocksAndPush(payloads, blocks, `Resumen de Alarmas - POD ${pod}`);
+    }
+
+    return payloads;
   },
 
-  _formatearErrores: function(errores) {
-    if (errores.length === 0) return '';
-    return 'Errores encontrados:\n' + errores.join('\n') + '\n////////////////////////////////////////////////////////////////////////////////////////////////////////////////////\n';
+  _formatearErroresBlockKit: function(errores) {
+    if (errores.length === 0) return [];
+    return [
+      {
+        type: "header",
+        text: { type: "plain_text", text: "⚠️ Errores Encontrados", emoji: true }
+      },
+      {
+        type: "section",
+        text: { type: "mrkdwn", text: errores.map(e => `• ${e}`).join('\n').substring(0, 3000) }
+      },
+      { type: "divider" }
+    ];
   },
 
-  _generarDetalleAlarmas: function(alarmas) {
-    let detalle = "";
+  _chunkBlocksAndPush: function(payloads, blocks, fallbackText) {
+    const CHUNK_SIZE = 45; // Slack limit is 50
+    for (let i = 0; i < blocks.length; i += CHUNK_SIZE) {
+      payloads.push({
+        text: fallbackText + (i > 0 ? " (Continuación)" : ""),
+        blocks: blocks.slice(i, i + CHUNK_SIZE)
+      });
+    }
+  },
+
+  _generarDetalleAlarmasBlockKit: function(alarmas) {
+    const blocks = [];
     for (const alarma in alarmas) {
       const targetsEntries = alarmas[alarma];
       const todasLasEntradas = Object.values(targetsEntries).flat();
@@ -51,7 +101,7 @@ const MessageFormatter = {
         let summariesSet = new Set();
         targetsEntries[target].forEach(entry => {
           if (entry.summaryResto !== null && entry.summaryResto !== 'N/A' && typeof entry.summaryResto === 'string') {
-            const sumVal = entry.summaryResto.toString().trim();
+            const sumVal = entry.summaryResto.trim();
             if (sumVal !== "") summariesSet.add(sumVal);
           }
         });
@@ -60,62 +110,57 @@ const MessageFormatter = {
       
       let groupBySummaries = {};
       for (const target in targetToSummaries) {
-        const summariesArr = targetToSummaries[target];
-        const key = JSON.stringify(summariesArr);
-        if (!groupBySummaries[key]) groupBySummaries[key] = { targets: [], summaries: summariesArr };
+        const key = JSON.stringify(targetToSummaries[target]);
+        if (!groupBySummaries[key]) groupBySummaries[key] = { targets: [], summaries: targetToSummaries[target] };
         groupBySummaries[key].targets.push(target);
       }
 
-      detalle += `• ${alarma}. ${mensajeFecha}\n`;
-
       const groupKeys = Object.keys(groupBySummaries);
-      const groupsWithSummary = groupKeys.filter(key => groupBySummaries[key].summaries.length > 0);
-      const groupsWithoutSummary = groupKeys.filter(key => groupBySummaries[key].summaries.length === 0);
-      const orderedGroupKeys = groupsWithSummary.concat(groupsWithoutSummary);
+      const orderedGroupKeys = groupKeys.filter(k => groupBySummaries[k].summaries.length > 0)
+                                        .concat(groupKeys.filter(k => groupBySummaries[k].summaries.length === 0));
 
       orderedGroupKeys.forEach(key => {
         const group = groupBySummaries[key];
+        
+        let textBlocks = `🔴 *${alarma}* _(${mensajeFecha})_\n`;
+        
         group.targets.forEach(origenStr => {
           let origen;
           try {
              origen = JSON.parse(origenStr);
           } catch(e) {
-             // Fallback retrocompatibilidad si había strings viejos
              origen = { vCenter: 'Desconocido', cluster: 'Desconocido', target: origenStr };
           }
-          detalle += `\to vCenter: ${origen.vCenter}\n`;
-          detalle += `\to Cluster: ${origen.cluster}\n`;
-          detalle += `\to Host/Target: ${origen.target}\n`;
+          
+          let snippet = `  ◦ *vCenter:* ${origen.vCenter}\n  ◦ *Cluster:* ${origen.cluster}\n  ◦ *Host/Target:* ${origen.target}\n`;
+          
+          if ((textBlocks.length + snippet.length) > 2800) {
+            blocks.push({ type: "section", text: { type: "mrkdwn", text: textBlocks } });
+            textBlocks = `🔴 *${alarma}* _(Continuación)_\n`;
+          }
+          textBlocks += snippet;
         });
+
         if (group.summaries.length > 0) {
           group.summaries.forEach(summary => {
-            if (summary.indexOf('\n') !== -1) {
-              const lines = summary.split('\n');
-              for (let i = 0; i < lines.length; i++) {
-                detalle += `\t\t- ${lines[i].trim()}\n`;
+            const lines = summary.split('\n');
+            lines.forEach(l => {
+              let snippet = `      ▪ _${l.trim()}_\n`;
+              if ((textBlocks.length + snippet.length) > 2800) {
+                 blocks.push({ type: "section", text: { type: "mrkdwn", text: textBlocks } });
+                 textBlocks = `🔴 *${alarma}* _(Continuación)_\n`;
               }
-            } else {
-              detalle += `\t\t- ${summary}\n`;
-            }
+              textBlocks += snippet;
+            });
           });
+        }
+        
+        if (textBlocks.trim() !== "") {
+          blocks.push({ type: "section", text: { type: "mrkdwn", text: textBlocks } });
         }
       });
     }
-    return detalle;
-  },
-
-  _procesarClienteWPC: function(cliente, alarmas) {
-    let cuerpo = "Estimados, ¿cómo están? Me comunico para informarles que recibimos la siguiente alarma:\n\n";
-    cuerpo += this._generarDetalleAlarmas(alarmas);
-    cuerpo += "\nAnte esto les consulto, ¿están al tanto de las anomalías? ¿Desean que generemos un ticket para analizar la anomalía en profundidad?\n\n";
-    cuerpo += "Aguardamos sus comentarios.\nSaludos cordiales.\n";
-    return cuerpo;
-  },
-
-  _procesarCliente: function(cliente, alarmas) {
-    let mensajeCliente = `${cliente}\n`;
-    mensajeCliente += this._generarDetalleAlarmas(alarmas);
-    return mensajeCliente + "\n";
+    return blocks;
   },
 
   _crearMensajeFecha: function(entries) {
@@ -129,14 +174,14 @@ const MessageFormatter = {
 
     if (fechas.length === 1 || fechasOrdenadas.every(date => date.getTime() === fechasOrdenadas[0].getTime())) {
       const fechaFormateada = this._formatearFecha(fechasOrdenadas[0]);
-      return `El día ${fechaFormateada.date} a las ${fechaFormateada.time}.`;
+      return `El día ${fechaFormateada.date} a las ${fechaFormateada.time}`;
     } else {
       const primeraFecha = this._formatearFecha(fechasOrdenadas[0]);
       const ultimaFecha = this._formatearFecha(fechasOrdenadas[fechasOrdenadas.length - 1]);
       if (primeraFecha.date === ultimaFecha.date) {
-        return `El día ${primeraFecha.date} desde las ${primeraFecha.time} hasta las ${ultimaFecha.time}.`;
+        return `El día ${primeraFecha.date} desde las ${primeraFecha.time} hasta las ${ultimaFecha.time}`;
       } else {
-        return `Desde el día ${primeraFecha.date} a las ${primeraFecha.time} hasta el día ${ultimaFecha.date} a las ${ultimaFecha.time}.`;
+        return `Desde el día ${primeraFecha.date} a las ${primeraFecha.time} hasta el día ${ultimaFecha.date} a las ${ultimaFecha.time}`;
       }
     }
   },

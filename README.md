@@ -35,11 +35,11 @@ Implementación del Patrón Strategy.
 ### 6. `MessageFormatter.js`
 Se encarga exclusivamente de la capa de presentación (Agnóstico).
 * Agrupa de manera jerárquica todas las alarmas en el orden: `POD > Cliente > Tipo de Alarma > Target`.
-* Construye las cadenas de texto (Strings) finales que serán visualizadas en Slack de forma completamente desacoplada (ignora el tipo de alarma exacto, solo junta y tabula las descripciones).
+* Construye arreglos de objetos JSON compatibles con la **API Block Kit de Slack** (Headers, Dividers, Sections), separando los envíos por POD para evitar superar el límite nativo de 50 bloques por mensaje.
 
 ### 7. `SlackService.js`
 El conector saliente.
-* Se responsabiliza puramente de enviar el string formateado al webhook de Slack mediante un HTTP POST, con una política de silenciado HTTP (`muteHttpExceptions`) que permite atrapar y detallar claramente errores de red como `400 Bad Request`.
+* Se responsabiliza puramente de enviar el Payload JSON al webhook de Slack mediante un HTTP POST, con una política de silenciado HTTP (`muteHttpExceptions`) que permite atrapar y detallar claramente errores de red como `400 Bad Request`.
 
 ### 8. `Main.js`
 El orquestador general y punto de entrada.
@@ -56,7 +56,7 @@ El orquestador general y punto de entrada.
    **⚠️ IMPORTANTE:** Antes de empezar a programar localmente, recuerda siempre ejecutar `clasp pull` para descargarte la última versión de la nube y asegurarte de no sobrescribir el código que otro miembro del equipo haya subido recientemente.
 
 2. **Ejecución de Pruebas:**
-   En la planilla de Google Sheets, ve a **Automatización de Alarmas > Ejecutar e Imprimir Local**. Esto procesará las alarmas reales pero en lugar de mandarlas a Slack, te las mostrará en una ventana emergente en el propio navegador, garantizando total seguridad durante el desarrollo.
+   En la planilla de Google Sheets, ve a **Automatización de Alarmas > Ejecutar e Imprimir Local**. Esto procesará las alarmas reales y renderizará el crudo JSON de Block Kit en una ventana modal segura sobre la planilla, garantizando total seguridad y visualización durante el desarrollo sin disparar webhooks.
 
 ## 🛠️ Cómo agregar un nuevo Tipo de Alarma
 

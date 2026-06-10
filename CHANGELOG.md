@@ -4,6 +4,16 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y el proyecto se adhiere a [Semantic Versioning](https://semver.org/).
 
+## [7.3.0-beta] - 2026-06-10
+
+### Added
+- **Slack Block Kit:** Refactor visual completo. Se reemplazó el texto plano monolítico por envíos modulares mediante la API de bloques de Slack (Headers, Dividers, Sections).
+- **Ejecución Local HTML:** La función `disparadorPrincipal_Local` ahora muestra el payload JSON renderizado en un modal interactivo de Apps Script en lugar de una simple alerta de texto, superando los límites de caracteres nativos de Sheets.
+
+### Changed
+- **Límites de Envíos Slack:** Para no chocar con el límite estricto de 50 bloques de Slack por mensaje, `MessageFormatter.js` ahora despacha arreglos de Payloads independientes (uno por POD).
+- `SlackService.js` fue alterado para recibir y postear diccionarios JSON nativos en lugar de *strings* envueltos en comillas de código.
+
 ## [7.2.0] - 2026-06-10
 
 ### Added
