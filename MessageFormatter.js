@@ -48,8 +48,8 @@ const MessageFormatter = {
 
       detalle += `• *${alarma}* _(${mensajeFecha})_\n`;
 
-      // Agrupar por vCenter y Cluster
-      let groupByVCenter = {};
+      // Agrupar por vCenter + Cluster + Summaries idénticos
+      let groupByCombination = {};
 
       for (const targetStr in targetsEntries) {
         let origen;
@@ -59,15 +59,6 @@ const MessageFormatter = {
            origen = { vCenter: 'Desconocido', cluster: 'Desconocido', target: targetStr };
         }
         
-        const groupKey = `${origen.vCenter}:::${origen.cluster}`;
-        if (!groupByVCenter[groupKey]) {
-          groupByVCenter[groupKey] = {
-            vCenter: origen.vCenter,
-            cluster: origen.cluster,
-            targets: []
-          };
-        }
-
         let summariesSet = new Set();
         targetsEntries[targetStr].forEach(entry => {
           if (entry.summaryResto !== null && entry.summaryResto !== 'N/A' && typeof entry.summaryResto === 'string') {
@@ -76,34 +67,47 @@ const MessageFormatter = {
           }
         });
 
-        groupByVCenter[groupKey].targets.push({
-          targetName: origen.target,
-          summaries: Array.from(summariesSet).sort()
+        const sortedSummaries = Array.from(summariesSet).sort();
+        const groupKey = JSON.stringify({
+          vCenter: origen.vCenter,
+          cluster: origen.cluster,
+          summaries: sortedSummaries
         });
+
+        if (!groupByCombination[groupKey]) {
+          groupByCombination[groupKey] = {
+            vCenter: origen.vCenter,
+            cluster: origen.cluster,
+            summaries: sortedSummaries,
+            targets: []
+          };
+        }
+
+        groupByCombination[groupKey].targets.push(origen.target);
       }
 
-      for (const key in groupByVCenter) {
-        const group = groupByVCenter[key];
+      for (const key in groupByCombination) {
+        const group = groupByCombination[key];
         
         detalle += `    • *vCenter:* ${group.vCenter}\n`;
         detalle += `    • *Cluster:* ${group.cluster}\n`;
         
-        group.targets.forEach(t => {
-          detalle += `    • *Host/Target:* ${t.targetName}\n`;
-          
-          if (t.summaries.length > 0) {
-            t.summaries.forEach(summary => {
-              if (summary.indexOf('\n') !== -1) {
-                const lines = summary.split('\n');
-                for (let i = 0; i < lines.length; i++) {
-                  detalle += `        • _${lines[i].trim()}_\n`;
-                }
-              } else {
-                detalle += `        • _${summary}_\n`;
-              }
-            });
-          }
+        group.targets.forEach(targetName => {
+          detalle += `    • *Host/Target:* ${targetName}\n`;
         });
+        
+        if (group.summaries.length > 0) {
+          group.summaries.forEach(summary => {
+            if (summary.indexOf('\n') !== -1) {
+              const lines = summary.split('\n');
+              for (let i = 0; i < lines.length; i++) {
+                detalle += `        • _${lines[i].trim()}_\n`;
+              }
+            } else {
+              detalle += `        • _${summary}_\n`;
+            }
+          });
+        }
       }
       detalle += `\n`;
     }

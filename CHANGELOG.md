@@ -4,6 +4,11 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y el proyecto se adhiere a [Semantic Versioning](https://semver.org/).
 
+## [7.3.4] - 2026-06-12
+
+### Changed
+- **Agrupamiento Profundo (Summaries):** Se mejoró el algoritmo de agrupar por origen. Ahora el script detecta automáticamente si múltiples `Hosts/Targets` bajo el mismo `vCenter` y `Cluster` comparten exactamente los mismos detalles descriptivos de alarma (Summaries). De ser así, apila todos los `Host/Target` y redacta la descripción *una única vez* debajo de ellos, reduciendo masivamente el ruido visual.
+
 ## [7.3.3] - 2026-06-12
 
 ### Changed
