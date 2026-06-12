@@ -4,6 +4,11 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y el proyecto se adhiere a [Semantic Versioning](https://semver.org/).
 
+## [7.3.0] - 2026-06-12
+
+### Changed
+- **Simulación Visual "Premium":** Tras rechazar Block Kit por limitaciones de copy-paste del workflow humano, `MessageFormatter.js` fue rediseñado usando una combinación de texto Markdown avanzado, separadores ASCII (`━━━━━━━━━━`) y Emojis para mantener la compatibilidad 100% nativa con el portapapeles sin perder la jerarquía y estética modernas.
+
 ## [7.2.0] - 2026-06-10
 
 ### Added
