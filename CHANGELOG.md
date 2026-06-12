@@ -4,6 +4,12 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y el proyecto se adhiere a [Semantic Versioning](https://semver.org/).
 
+## [7.3.3] - 2026-06-12
+
+### Changed
+- **Agrupamiento por Origen:** La lógica de `MessageFormatter.js` fue completamente reestructurada para agrupar visualmente los Hosts bajo un único `vCenter` y `Cluster`. Esto elimina la redundancia masiva de texto cuando un mismo entorno sufre alertas en múltiples servidores de manera concurrente.
+- Se deshizo la adición de la línea divisoria ASCII final por requerimiento del usuario.
+
 ## [7.3.2] - 2026-06-12
 
 ### Fixed

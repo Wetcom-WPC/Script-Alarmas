@@ -1,6 +1,6 @@
 /**
  * Se encarga de la presentación de los datos (agrupación y conversión a texto para Slack)
- * Utiliza Markdown avanzado y ASCII para mantener estética Premium sin Emojis.
+ * Utiliza Markdown avanzado para mantener estética Premium sin Emojis.
  */
 const MessageFormatter = {
   
@@ -21,15 +21,12 @@ const MessageFormatter = {
         mensaje += `*${cliente}*\n\n`;
         const alarmasCliente = mensajesProcesados[pod][cliente];
         mensaje += this._generarDetalleAlarmas(alarmasCliente);
-        mensaje += `\n`;
       }
 
       if (pod === "WPC") {
-        mensaje += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
         mensaje += `Ante esto les consulto, ¿están al tanto de las anomalías? ¿Desean que generemos un ticket para analizar la anomalía en profundidad?\n`;
         mensaje += `Aguardamos sus comentarios.\nSaludos cordiales.\n\n\n\n`;
       } else {
-        mensaje += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
         mensaje += `Ante esto, les consulto, ¿están al tanto de la/s anomalía/s? ¿desean que le informemos al cliente?\n\n\n\n`;
       }
     }
@@ -49,61 +46,65 @@ const MessageFormatter = {
       const todasLasEntradas = Object.values(targetsEntries).flat();
       const mensajeFecha = this._crearMensajeFecha(todasLasEntradas);
 
-      let targetToSummaries = {};
-      for (const target in targetsEntries) {
+      detalle += `• *${alarma}* _(${mensajeFecha})_\n`;
+
+      // Agrupar por vCenter y Cluster
+      let groupByVCenter = {};
+
+      for (const targetStr in targetsEntries) {
+        let origen;
+        try {
+           origen = JSON.parse(targetStr);
+        } catch(e) {
+           origen = { vCenter: 'Desconocido', cluster: 'Desconocido', target: targetStr };
+        }
+        
+        const groupKey = `${origen.vCenter}:::${origen.cluster}`;
+        if (!groupByVCenter[groupKey]) {
+          groupByVCenter[groupKey] = {
+            vCenter: origen.vCenter,
+            cluster: origen.cluster,
+            targets: []
+          };
+        }
+
         let summariesSet = new Set();
-        targetsEntries[target].forEach(entry => {
+        targetsEntries[targetStr].forEach(entry => {
           if (entry.summaryResto !== null && entry.summaryResto !== 'N/A' && typeof entry.summaryResto === 'string') {
             const sumVal = entry.summaryResto.toString().trim();
             if (sumVal !== "") summariesSet.add(sumVal);
           }
         });
-        targetToSummaries[target] = Array.from(summariesSet).sort();
-      }
-      
-      let groupBySummaries = {};
-      for (const target in targetToSummaries) {
-        const summariesArr = targetToSummaries[target];
-        const key = JSON.stringify(summariesArr);
-        if (!groupBySummaries[key]) groupBySummaries[key] = { targets: [], summaries: summariesArr };
-        groupBySummaries[key].targets.push(target);
-      }
 
-      detalle += `• *${alarma}* _(${mensajeFecha})_\n`;
-
-      const groupKeys = Object.keys(groupBySummaries);
-      const groupsWithSummary = groupKeys.filter(key => groupBySummaries[key].summaries.length > 0);
-      const groupsWithoutSummary = groupKeys.filter(key => groupBySummaries[key].summaries.length === 0);
-      const orderedGroupKeys = groupsWithSummary.concat(groupsWithoutSummary);
-
-      orderedGroupKeys.forEach(key => {
-        const group = groupBySummaries[key];
-        group.targets.forEach(origenStr => {
-          let origen;
-          try {
-             origen = JSON.parse(origenStr);
-          } catch(e) {
-             // Fallback retrocompatibilidad si había strings viejos
-             origen = { vCenter: 'Desconocido', cluster: 'Desconocido', target: origenStr };
-          }
-          detalle += `    • *vCenter:* ${origen.vCenter}\n`;
-          detalle += `    • *Cluster:* ${origen.cluster}\n`;
-          detalle += `    • *Host/Target:* ${origen.target}\n`;
+        groupByVCenter[groupKey].targets.push({
+          targetName: origen.target,
+          summaries: Array.from(summariesSet).sort()
         });
+      }
+
+      for (const key in groupByVCenter) {
+        const group = groupByVCenter[key];
         
-        if (group.summaries.length > 0) {
-          group.summaries.forEach(summary => {
-            if (summary.indexOf('\n') !== -1) {
-              const lines = summary.split('\n');
-              for (let i = 0; i < lines.length; i++) {
-                detalle += `        • _${lines[i].trim()}_\n`;
+        detalle += `    • *vCenter:* ${group.vCenter}\n`;
+        detalle += `    • *Cluster:* ${group.cluster}\n`;
+        
+        group.targets.forEach(t => {
+          detalle += `    • *Host/Target:* ${t.targetName}\n`;
+          
+          if (t.summaries.length > 0) {
+            t.summaries.forEach(summary => {
+              if (summary.indexOf('\n') !== -1) {
+                const lines = summary.split('\n');
+                for (let i = 0; i < lines.length; i++) {
+                  detalle += `        • _${lines[i].trim()}_\n`;
+                }
+              } else {
+                detalle += `        • _${summary}_\n`;
               }
-            } else {
-              detalle += `        • _${summary}_\n`;
-            }
-          });
-        }
-      });
+            });
+          }
+        });
+      }
       detalle += `\n`;
     }
     return detalle;
