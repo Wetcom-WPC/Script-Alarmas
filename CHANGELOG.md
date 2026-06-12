@@ -4,6 +4,12 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y el proyecto se adhiere a [Semantic Versioning](https://semver.org/).
 
+## [7.3.2] - 2026-06-12
+
+### Fixed
+- **Ajustes Estéticos (Items):** Las viñetas de los elementos anidados se unificaron usando el carácter de punto sólido (`•`) para mantener idéntica compatibilidad con el estilo visual de la versión anterior a pedido del usuario.
+- Se agregó una línea separadora ASCII (`━━━━━━━━━━`) adicional antes de la sección de preguntas (Despedida de la alerta).
+
 ## [7.3.1] - 2026-06-12
 
 ### Fixed

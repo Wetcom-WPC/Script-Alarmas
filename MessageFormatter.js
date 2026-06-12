@@ -25,9 +25,11 @@ const MessageFormatter = {
       }
 
       if (pod === "WPC") {
+        mensaje += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
         mensaje += `Ante esto les consulto, ¿están al tanto de las anomalías? ¿Desean que generemos un ticket para analizar la anomalía en profundidad?\n`;
         mensaje += `Aguardamos sus comentarios.\nSaludos cordiales.\n\n\n\n`;
       } else {
+        mensaje += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
         mensaje += `Ante esto, les consulto, ¿están al tanto de la/s anomalía/s? ¿desean que le informemos al cliente?\n\n\n\n`;
       }
     }
@@ -67,7 +69,7 @@ const MessageFormatter = {
         groupBySummaries[key].targets.push(target);
       }
 
-      detalle += `*${alarma}* _(${mensajeFecha})_\n`;
+      detalle += `• *${alarma}* _(${mensajeFecha})_\n`;
 
       const groupKeys = Object.keys(groupBySummaries);
       const groupsWithSummary = groupKeys.filter(key => groupBySummaries[key].summaries.length > 0);
@@ -84,9 +86,9 @@ const MessageFormatter = {
              // Fallback retrocompatibilidad si había strings viejos
              origen = { vCenter: 'Desconocido', cluster: 'Desconocido', target: origenStr };
           }
-          detalle += `  o *vCenter:* ${origen.vCenter}\n`;
-          detalle += `  o *Cluster:* ${origen.cluster}\n`;
-          detalle += `  o *Host/Target:* ${origen.target}\n`;
+          detalle += `    • *vCenter:* ${origen.vCenter}\n`;
+          detalle += `    • *Cluster:* ${origen.cluster}\n`;
+          detalle += `    • *Host/Target:* ${origen.target}\n`;
         });
         
         if (group.summaries.length > 0) {
@@ -94,10 +96,10 @@ const MessageFormatter = {
             if (summary.indexOf('\n') !== -1) {
               const lines = summary.split('\n');
               for (let i = 0; i < lines.length; i++) {
-                detalle += `    - _${lines[i].trim()}_\n`;
+                detalle += `        • _${lines[i].trim()}_\n`;
               }
             } else {
-              detalle += `    - _${summary}_\n`;
+              detalle += `        • _${summary}_\n`;
             }
           });
         }
