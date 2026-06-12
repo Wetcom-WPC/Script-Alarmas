@@ -71,6 +71,7 @@ const MessageFormatter = {
         const groupKey = JSON.stringify({
           vCenter: origen.vCenter,
           cluster: origen.cluster,
+          targetLabel: origen.targetLabel || 'Host/Target',
           summaries: sortedSummaries
         });
 
@@ -78,6 +79,7 @@ const MessageFormatter = {
           groupByCombination[groupKey] = {
             vCenter: origen.vCenter,
             cluster: origen.cluster,
+            targetLabel: origen.targetLabel || 'Host/Target',
             summaries: sortedSummaries,
             targets: []
           };
@@ -89,11 +91,18 @@ const MessageFormatter = {
       for (const key in groupByCombination) {
         const group = groupByCombination[key];
         
-        detalle += `    • *vCenter:* ${group.vCenter}\n`;
-        detalle += `    • *Cluster:* ${group.cluster}\n`;
+        if (group.vCenter && !group.vCenter.toLowerCase().includes('desconocido')) {
+          detalle += `    • *vCenter:* ${group.vCenter}\n`;
+        }
+        
+        if (group.cluster && !group.cluster.toLowerCase().includes('desconocido') && group.targetLabel !== 'Cluster') {
+          detalle += `    • *Cluster:* ${group.cluster}\n`;
+        }
         
         group.targets.forEach(targetName => {
-          detalle += `    • *Host/Target:* ${targetName}\n`;
+          if (targetName && !targetName.toLowerCase().includes('desconocido') && !targetName.toLowerCase().includes('no encontrado')) {
+            detalle += `    • *${group.targetLabel}:* ${targetName}\n`;
+          }
         });
         
         if (group.summaries.length > 0) {

@@ -37,6 +37,7 @@ const AlarmProcessor = {
         if (!formato.incluir) return; // Si debe excluirse (Ej. Falso positivo) no hace nada
         
         origen.target = formato.nuevoTarget;
+        origen.targetLabel = formato.targetLabel;
         summaryResto = formato.nuevoSummary;
 
         this._agruparMensaje(pod, cliente, alarmaProcesada, JSON.stringify(origen), issue.created, mensajesProcesados, warnings, summaryResto);
@@ -210,12 +211,28 @@ const AlarmProcessor = {
       return { incluir: false };
     }
 
+    let resultado;
     // Implementación de Patrón Strategy: Busca el formateador, si no existe devuelve por defecto.
     if (AlarmFormatters.handlers[tipoAlarma]) {
-      return AlarmFormatters.handlers[tipoAlarma](summaryResto, target, description);
+      resultado = AlarmFormatters.handlers[tipoAlarma](summaryResto, target, description);
+    } else {
+      resultado = { incluir: true, nuevoTarget: target, nuevoSummary: summaryResto };
     }
 
-    return { incluir: true, nuevoTarget: target, nuevoSummary: summaryResto };
+    if (resultado.incluir && !resultado.targetLabel && resultado.nuevoTarget) {
+      const lowerTarget = resultado.nuevoTarget.toLowerCase();
+      if (lowerTarget.startsWith('esx') || lowerTarget.includes('host')) {
+        resultado.targetLabel = 'Host';
+      } else if (lowerTarget.startsWith('cl-') || lowerTarget.includes('cluster')) {
+        resultado.targetLabel = 'Cluster';
+      } else if (lowerTarget.startsWith('ds-') || lowerTarget.includes('datastore')) {
+        resultado.targetLabel = 'Datastore';
+      } else {
+        resultado.targetLabel = 'Recurso Afectado';
+      }
+    }
+
+    return resultado;
   },
 
   _agruparMensaje: function(pod, cliente, alarma, target, created, mensajesProcesados, warnings, summaryResto) {

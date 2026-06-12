@@ -4,6 +4,12 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y el proyecto se adhiere a [Semantic Versioning](https://semver.org/).
 
+## [7.4.0] - 2026-06-12
+
+### Added
+- **Clasificación Inteligente de Objetivos (Smart Targeting):** Se integró el uso avanzado del Patrón Strategy (`AlarmFormatters.js`) y una nueva heurística de respaldo en `AlarmProcessor.js` para deducir automáticamente si un `Target` es un `Host`, un `Cluster`, o un `Datastore`. 
+- **Limpieza de UX (Anti-ruido Visual):** El script ahora omite y oculta de forma dinámica cualquier propiedad de la alerta (vCenter, Cluster, o Target) cuyo valor sea "Desconocido", así como también evita redundancias (Ej. ocultando el campo genérico "Cluster" si la alerta ya está apuntando explícitamente a un Cluster en su propiedad Target).
+
 ## [7.3.4] - 2026-06-12
 
 ### Changed
