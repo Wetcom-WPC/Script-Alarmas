@@ -4,6 +4,12 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y el proyecto se adhiere a [Semantic Versioning](https://semver.org/).
 
+## [7.3.1] - 2026-06-12
+
+### Fixed
+- **Slack Markdown:** Se removió la envoltura de bloque de código (` ``` `) en `SlackService.js` que estaba rompiendo la interpretación del texto en negrita y cursiva.
+- **Ajustes Estéticos:** Se removieron los emojis, se simplificó el encabezado de "Alarmas - POD X" a "POD X", y se restauraron las viñetas de puntos y guiones clásicos a pedido del liderazgo.
+
 ## [7.3.0] - 2026-06-12
 
 ### Changed

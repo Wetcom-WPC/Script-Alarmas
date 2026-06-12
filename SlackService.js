@@ -12,7 +12,7 @@ const SlackService = {
     }
 
     const payload = JSON.stringify({ 
-      text: "```\n" + message + "\n```" 
+      text: message 
     });
     
     const options = { 

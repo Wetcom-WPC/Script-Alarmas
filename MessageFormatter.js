@@ -1,7 +1,6 @@
 /**
  * Se encarga de la presentación de los datos (agrupación y conversión a texto para Slack)
- * Utiliza Markdown avanzado y ASCII para simular una estética Premium "Block Kit" 
- * manteniendo la capacidad de Copy-Paste en texto plano.
+ * Utiliza Markdown avanzado y ASCII para mantener estética Premium sin Emojis.
  */
 const MessageFormatter = {
   
@@ -9,7 +8,7 @@ const MessageFormatter = {
     let mensaje = this._formatearErrores(errores);
 
     for (const pod in mensajesProcesados) {
-      mensaje += `🚨 *Alarmas - POD ${pod}*\n`;
+      mensaje += `*POD ${pod}*\n`;
       mensaje += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
       
       if (pod === "WPC") {
@@ -19,7 +18,7 @@ const MessageFormatter = {
       }
 
       for (const cliente in mensajesProcesados[pod]) {
-        mensaje += `🏢 *${cliente}*\n\n`;
+        mensaje += `*${cliente}*\n\n`;
         const alarmasCliente = mensajesProcesados[pod][cliente];
         mensaje += this._generarDetalleAlarmas(alarmasCliente);
         mensaje += `\n`;
@@ -38,7 +37,7 @@ const MessageFormatter = {
 
   _formatearErrores: function(errores) {
     if (errores.length === 0) return '';
-    return '⚠️ *Errores encontrados:*\n' + errores.map(e => `• ${e}`).join('\n') + '\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n';
+    return '*Errores encontrados:*\n' + errores.map(e => `• ${e}`).join('\n') + '\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n';
   },
 
   _generarDetalleAlarmas: function(alarmas) {
@@ -68,7 +67,7 @@ const MessageFormatter = {
         groupBySummaries[key].targets.push(target);
       }
 
-      detalle += `🔴 *${alarma}* _(${mensajeFecha})_\n`;
+      detalle += `*${alarma}* _(${mensajeFecha})_\n`;
 
       const groupKeys = Object.keys(groupBySummaries);
       const groupsWithSummary = groupKeys.filter(key => groupBySummaries[key].summaries.length > 0);
@@ -85,9 +84,9 @@ const MessageFormatter = {
              // Fallback retrocompatibilidad si había strings viejos
              origen = { vCenter: 'Desconocido', cluster: 'Desconocido', target: origenStr };
           }
-          detalle += `  ◦ *vCenter:* ${origen.vCenter}\n`;
-          detalle += `  ◦ *Cluster:* ${origen.cluster}\n`;
-          detalle += `  ◦ *Host/Target:* ${origen.target}\n`;
+          detalle += `  o *vCenter:* ${origen.vCenter}\n`;
+          detalle += `  o *Cluster:* ${origen.cluster}\n`;
+          detalle += `  o *Host/Target:* ${origen.target}\n`;
         });
         
         if (group.summaries.length > 0) {
@@ -95,10 +94,10 @@ const MessageFormatter = {
             if (summary.indexOf('\n') !== -1) {
               const lines = summary.split('\n');
               for (let i = 0; i < lines.length; i++) {
-                detalle += `      ▪ _${lines[i].trim()}_\n`;
+                detalle += `    - _${lines[i].trim()}_\n`;
               }
             } else {
-              detalle += `      ▪ _${summary}_\n`;
+              detalle += `    - _${summary}_\n`;
             }
           });
         }
