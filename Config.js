@@ -3,7 +3,7 @@
  */
 const Config = {
   // Entorno actual ('TESTING' para desarrollo/pruebas y 'PROD' para producción)
-  ENVIRONMENT: 'TESTING',
+  ENVIRONMENT: 'PROD',
 
   // Configuración de Jira
   JIRA_BASE_URL: "wetcom.atlassian.net",
