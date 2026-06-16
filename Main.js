@@ -4,9 +4,12 @@
 
 function onOpen() {
   const ui = SpreadsheetApp.getUi();
-  ui.createMenu('Ejecutar Automatización')
+  ui.createMenu('Automatización de Alarmas')
     .addItem('Ejecutar y Enviar a Slack', 'disparadorPrincipal_conAPI')
     .addItem('Ejecutar e Imprimir Local', 'disparadorPrincipal_Local')
+    .addSeparator()
+    .addItem('▶️ Activar Ejecución Automática (Cada 5 min)', 'instalarTriggerAutomatico')
+    .addItem('⏹️ Desactivar Ejecución Automática', 'desinstalarTriggerAutomatico')
     .addToUi();
 }
 
@@ -73,5 +76,50 @@ function disparadorPrincipal_Local() {
 
   } catch (e) {
     SpreadsheetApp.getUi().alert("Error crítico en el script", e.message, SpreadsheetApp.getUi().ButtonSet.OK);
+  }
+}
+
+/**
+ * Instala un trigger para que el script se ejecute automáticamente cada 5 minutos.
+ */
+function instalarTriggerAutomatico() {
+  const ui = SpreadsheetApp.getUi();
+  try {
+    // Primero limpiamos cualquier trigger anterior para evitar duplicados
+    desinstalarTriggerAutomatico(true);
+    
+    ScriptApp.newTrigger('disparadorPrincipal_conAPI')
+      .timeBased()
+      .everyMinutes(5)
+      .create();
+      
+    ui.alert("✅ Éxito", "El trigger automático se ha instalado correctamente.\nA partir de ahora, el script revisará Jira y enviará a Slack cada 5 minutos de forma automática en el fondo (incluso si cierras esta pestaña).", ui.ButtonSet.OK);
+  } catch (e) {
+    ui.alert("❌ Error", "No se pudo instalar el trigger: " + e.message, ui.ButtonSet.OK);
+  }
+}
+
+/**
+ * Desinstala el trigger automático si existe.
+ * @param {boolean} silencioso - Si es true, no muestra alertas UI (usado internamente por el instalador).
+ */
+function desinstalarTriggerAutomatico(silencioso = false) {
+  const triggers = ScriptApp.getProjectTriggers();
+  let eliminado = false;
+  
+  for (let i = 0; i < triggers.length; i++) {
+    if (triggers[i].getHandlerFunction() === 'disparadorPrincipal_conAPI') {
+      ScriptApp.deleteTrigger(triggers[i]);
+      eliminado = true;
+    }
+  }
+  
+  if (!silencioso) {
+    const ui = SpreadsheetApp.getUi();
+    if (eliminado) {
+      ui.alert("⏹️ Desactivado", "Se ha desactivado la ejecución automática. El script ya no correrá cada 5 minutos.", ui.ButtonSet.OK);
+    } else {
+      ui.alert("Aviso", "No se encontró ningún trigger activo para desactivar.", ui.ButtonSet.OK);
+    }
   }
 }
