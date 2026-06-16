@@ -96,24 +96,30 @@ const MessageFormatter = {
         }
         
         if (group.cluster && !group.cluster.toLowerCase().includes('desconocido') && group.targetLabel !== 'Cluster') {
-          detalle += `    • *Cluster:* ${group.cluster}\n`;
+          detalle += `        • *Cluster:* ${group.cluster}\n`;
         }
         
         group.targets.forEach(targetName => {
           if (targetName && !targetName.toLowerCase().includes('desconocido') && !targetName.toLowerCase().includes('no encontrado')) {
-            detalle += `    • *${group.targetLabel}:* ${targetName}\n`;
+            // Si hay un cluster que no es el target, indentamos el target un nivel más
+            if (group.cluster && !group.cluster.toLowerCase().includes('desconocido') && group.targetLabel !== 'Cluster') {
+              detalle += `            • *${group.targetLabel}:* ${targetName}\n`;
+            } else {
+              detalle += `        • *${group.targetLabel}:* ${targetName}\n`;
+            }
           }
         });
         
         if (group.summaries.length > 0) {
+          const indentSummaries = (group.cluster && !group.cluster.toLowerCase().includes('desconocido') && group.targetLabel !== 'Cluster') ? '                ' : '            ';
           group.summaries.forEach(summary => {
             if (summary.indexOf('\n') !== -1) {
               const lines = summary.split('\n');
               for (let i = 0; i < lines.length; i++) {
-                detalle += `        • _${lines[i].trim()}_\n`;
+                detalle += `${indentSummaries}• _${lines[i].trim()}_\n`;
               }
             } else {
-              detalle += `        • _${summary}_\n`;
+              detalle += `${indentSummaries}• _${summary}_\n`;
             }
           });
         }

@@ -4,6 +4,11 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y el proyecto se adhiere a [Semantic Versioning](https://semver.org/).
 
+## [7.4.1] - 2026-06-16
+
+### Fixed
+- **Indentación Escalonada:** Se incrementó la sangría (tabulación) de las propiedades `Cluster`, `Target/Host` y los detalles de la alarma para generar una jerarquía visual escalonada respecto al `vCenter` superior, facilitando la lectura en cascada de los recursos afectados.
+
 ## [7.4.0] - 2026-06-12
 
 ### Added
