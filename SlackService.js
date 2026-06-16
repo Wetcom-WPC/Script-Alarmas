@@ -22,17 +22,13 @@ const SlackService = {
       muteHttpExceptions: true 
     };
 
-    try { 
-      const response = UrlFetchApp.fetch(webhookUrl, options);
-      const statusCode = response.getResponseCode();
-      
-      if (statusCode < 200 || statusCode >= 300) {
-        const errorMsg = `Error HTTP ${statusCode} al enviar a Slack: ${response.getContentText()}`;
-        Logger.log(errorMsg);
-        throw new Error(errorMsg);
-      }
-    } catch (e) { 
-      Logger.log("Excepción al enviar a Slack: " + e.message); 
+    const response = UrlFetchApp.fetch(webhookUrl, options);
+    const statusCode = response.getResponseCode();
+    
+    if (statusCode < 200 || statusCode >= 300) {
+      const errorMsg = `Error HTTP ${statusCode} al enviar a Slack: ${response.getContentText()}`;
+      Logger.log(errorMsg);
+      throw new Error(errorMsg);
     }
   }
 };

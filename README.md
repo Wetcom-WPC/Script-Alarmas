@@ -1,66 +1,69 @@
 # Automatización de Alarmas: Jira a Slack
 
-🔗 **Navegación Rápida:** [📖 Ver Changelog (Historial de Versiones)](CHANGELOG.md) | [🤝 Guía de Contribución](CONTRIBUTING.md)
+🔗 **Navegación Rápida:** [📖 Ver Changelog (Historial de Versiones)](CHANGELOG.md)
 
 Este proyecto es un script de **Google Apps Script (GAS)** que se encarga de extraer de forma automática las alarmas (tickets) generadas en Jira, procesarlas, cruzarlas con la base de datos de clientes/PODs alojada en Google Sheets, y enviar un resumen consolidado por canal de Slack.
 
-## 🏗️ Arquitectura del Proyecto
+## 🏗️ Arquitectura del Proyecto (SOLID)
 
-Para facilitar su mantenimiento, el código monolítico original se ha dividido en múltiples módulos enfocados en una única responsabilidad (Principios SOLID).
+Para garantizar calidad *Enterprise*, el código original ha sido dividido en módulos especializados con responsabilidad única.
 
 ### 1. `Config.js`
-Maneja las constantes estáticas y la configuración global del proyecto.
-* **Propósito:** Evitar dejar credenciales o IDs importantes (como el `JIRA_FILTER_ID`) esparcidos por todo el código.
-* **Seguridad:** Utiliza el método seguro `PropertiesService` para buscar claves de API. Las contraseñas (como tokens base64 o URLs de Webhooks) jamás deben escribirse en texto plano.
+Maneja las constantes estáticas, entornos y la configuración global del proyecto.
+* **Entornos (PROD/TEST):** Posee una bandera `ENVIRONMENT` para cambiar rápidamente a un webhook de pruebas y evitar notificaciones erróneas durante el desarrollo.
+* **Seguridad:** Extrae los tokens secretos (`JIRA_AUTH_TOKEN`, `SLACK_WEBHOOK_PROD`) del `PropertiesService` seguro de Google.
 
 ### 2. `JiraService.js`
 Se encarga de la conexión con Atlassian Jira.
-* Realiza consultas a la **API REST v3 de Jira** (ahora con paginación optimizada hasta 100 resultados).
-* Extrae y formatea el JSON nativo para devolver un arreglo de objetos claros. Además, implementa un **Parser Recursivo de ADF (Atlassian Document Format)** que garantiza extraer todo el texto incluso si la alerta se origina escondida dentro de tablas o viñetas.
+* Realiza consultas paginadas a la **API REST v3 de Jira**.
+* Implementa un **Parser Recursivo de ADF (Atlassian Document Format)** que garantiza extraer texto oculto dentro de tablas o viñetas.
 
 ### 3. `DataRepository.js`
-Actúa como la base de datos del script.
-* Lee las pestañas **Clientes** y **Tipos de Alarmas** desde la planilla de Google Sheets activa.
-* Transforma estas tablas en diccionarios (objetos de llave-valor en Javascript) para que el procesamiento sea instantáneo sin tener que iterar planillas completas.
+Actúa como la base de datos en RAM.
+* Lee las pestañas **Clientes** y **Tipos de Alarmas** transformándolas en diccionarios para procesamiento O(1).
 
-### 4. `AlarmProcessor.js`
-Es el "cerebro" central de ruteo y exclusión (Reglas Generales).
-* **Extracción de Nombres:** Usa arreglos de expresiones regulares (Regex) llamados **interceptores** para deducir el tipo de alarma genérica si no es obvia.
-* **Extracción del Target:** Revisa inteligentemente el "description" y el "summary" del ticket de Jira para obtener el target (host, datastore, etc.) como respaldo.
+### 4. `AlarmParser.js`
+El motor de disección de Strings.
+* Aplica interceptores y expresiones regulares complejas para adivinar nombres de alarmas y extraer "vCenter", "Cluster" y "Target" limpios de los bloques de descripción de Jira.
 
-### 5. `AlarmFormatters.js`
-Implementación del Patrón Strategy. 
-* Encapsula las **Reglas Específicas** de limpieza para cada tipo de alerta compleja. Si una alarma necesita limpieza textual adicional (ej: caídas de host, redundancias de storage), la lógica vive exclusivamente acá en lugar de sobrecargar el procesador general.
+### 5. `AlarmProcessor.js`
+El orquestador de reglas de negocio.
+* Agrupa las alarmas validadas. Delega el parseo a `AlarmParser` y delega el formateo lógico a las estrategias de `AlarmFormatters`. Implementa heurísticas por prefijo para deducir si un Target es un `Host`, un `Cluster` o un `Datastore`.
 
-### 6. `MessageFormatter.js`
-Se encarga exclusivamente de la capa de presentación (Agnóstico).
-* Agrupa de manera jerárquica todas las alarmas en el orden: `POD > Cliente > Tipo de Alarma > Target`.
-* Construye las cadenas de texto (Strings) finales que serán visualizadas en Slack de forma completamente desacoplada (ignora el tipo de alarma exacto, solo junta y tabula las descripciones).
+### 6. `AlarmFormatters.js` (Strategy Pattern)
+* Encapsula las **Reglas Específicas** de limpieza para cada tipo de alerta. Devuelve objetos JSON inyectando `targetLabel` inteligente para que el procesador sepa con qué tipo de recurso está lidiando.
 
-### 7. `SlackService.js`
+### 7. `MessageFormatter.js`
+Agnóstico, encargado puramente de la capa de renderizado visual para Slack.
+* Redacta el mensaje en formato "Plano Premium": Utiliza viñetas, negritas e indentación escalonada dinámica (vCenter -> Cluster -> Target -> Summary) para generar reportes fáciles de leer y copiar en el NOC.
+* Limpia de forma dinámica cualquier valor catalogado como "Desconocido" u ocultando propiedades redundantes.
+
+### 8. `SlackService.js`
 El conector saliente.
-* Se responsabiliza puramente de enviar el string formateado al webhook de Slack mediante un HTTP POST, con una política de silenciado HTTP (`muteHttpExceptions`) que permite atrapar y detallar claramente errores de red como `400 Bad Request`.
+* Envía el HTTP POST a Slack y arroja excepciones explícitas al servidor si detecta errores de red (evita fallos silenciosos).
 
-### 8. `Main.js`
-El orquestador general y punto de entrada.
-* Contiene la función `disparadorPrincipal_conAPI()` que es la que se ejecuta manualmente desde el menú de Sheets o que se asigna a un "Trigger" automatizado de Apps Script basado en tiempo.
+### 9. `Main.js`
+El entrypoint para Google Apps Script.
+* Procesa todo en un entorno seguro y ofrece opciones para imprimir localmente en vez de ir a Slack (Modo Prueba Local).
+
 ---
 
-## 🚀 Despliegue y Pruebas
+## 🚀 Despliegue y Configuración
 
-1. **Uso local con Clasp:** 
-   El proyecto incluye configuración de `clasp` (`.clasp.json`). Puedes hacer modificaciones locales en tu editor favorito y subirlas al servidor usando:
+1. **Gestión de Entornos (Pruebas Locales sin molestar a Clientes):**
+   Abre `Config.js` y asegúrate de configurar `ENVIRONMENT: 'TESTING'` antes de empezar a programar.
+
+2. **Propiedades Seguras:**
+   Tus variables `JIRA_AUTH_TOKEN`, `SLACK_WEBHOOK_PROD` y `SLACK_WEBHOOK_TESTING` viven encriptadas en *Configuración de Proyecto > Propiedades de Script* dentro del IDE web de Apps Script.
+
+3. **Uso local con Clasp:** 
    ```bash
-   clasp push
+   clasp pull   # Bajar la versión en producción actual (¡Hacer siempre antes de empezar!)
+   clasp push   # Subir tus cambios al servidor de Google
    ```
-   **⚠️ IMPORTANTE:** Antes de empezar a programar localmente, recuerda siempre ejecutar `clasp pull` para descargarte la última versión de la nube y asegurarte de no sobrescribir el código que otro miembro del equipo haya subido recientemente.
-
-2. **Ejecución de Pruebas:**
-   En la planilla de Google Sheets, ve a **Automatización de Alarmas > Ejecutar e Imprimir Local**. Esto procesará las alarmas reales pero en lugar de mandarlas a Slack, te las mostrará en una ventana emergente en el propio navegador, garantizando total seguridad durante el desarrollo.
 
 ## 🛠️ Cómo agregar un nuevo Tipo de Alarma
 
-1. Agrega el nombre exacto de la alarma y su "Traducción" en la hoja de cálculo **"Tipos de Alarmas"**.
-2. Si el título que llega de Jira es muy distinto y complejo de interpretar mediante limpieza simple, dirígete a `AlarmProcessor.js` y añade un nuevo objeto al array `interceptors`.
-3. Si la alarma requiere formateo de texto complejo (limpiar el summary o extraer solo una porción útil descartando ruido), abre el archivo `AlarmFormatters.js`.
-4. En el diccionario `handlers`, crea una nueva función usando como llave (`key`) el nombre exacto de tu nueva alarma, y devuelve como respuesta un string (texto). El sistema la enlazará y le añadirá viñetas de forma automática sin tocar el código central.
+1. **Traducción Simple:** Ve a la hoja de Google Sheets **"Tipos de Alarmas"** y agrega el nombre en inglés del lado izquierdo, y el nombre comercial del lado derecho. (Recuerda que ya no hay reglas hardcodeadas).
+2. **Parsing Complejo:** Si la alarma tiene un nombre extrañísimo escondido en el summary, agrégale un regex interceptor en `AlarmParser.js`.
+3. **TargetLabel Inteligente:** Si la alarma impacta un recurso extraño que no es un ESXi ni un Cluster, entra a `AlarmFormatters.js` y crea un strategy para que devuelva el `targetLabel` correcto.

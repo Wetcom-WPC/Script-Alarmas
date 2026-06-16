@@ -4,6 +4,17 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y el proyecto se adhiere a [Semantic Versioning](https://semver.org/).
 
+## [7.6.0] - 2026-06-16
+
+### Added
+- **Parser Aislado (`AlarmParser.js`):** Se extrajo exitosamente toda la lógica pesada de parsing (Regex, interceptores) que residía en `AlarmProcessor.js` hacia un nuevo módulo de parseo puro y dedicado (`AlarmParser.js`), cumpliendo estrictamente con el Principio de Responsabilidad Única (SRP).
+
+### Changed
+- **Manejo de Errores Slack:** Se modificó `SlackService.js` para que ante cualquier error HTTP o caída de red de Slack, se arroje (throw) una excepción explícita hacia la capa superior (`Main.js`), permitiendo que los Triggers de Google Apps Script registren la falla adecuadamente y notifiquen al administrador, eliminando el fallo silencioso.
+
+### Removed
+- **Deuda Técnica Eliminada:** Se eliminaron las reglas de negocio estáticas (hardcodeadas por retrocompatibilidad) para `vsan` y `hardware sensor status` que seguían vivas en el código. Ahora el motor confía al 100% en los mapeos dinámicos gestionados directamente desde la planilla "Tipos de Alarmas".
+
 ## [7.5.0] - 2026-06-16
 
 ### Added
