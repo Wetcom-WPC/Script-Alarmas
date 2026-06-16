@@ -1,10 +1,10 @@
 # Automatización de Alarmas: Jira a Slack
 
-🔗 **Navegación Rápida:** [📖 Ver Changelog (Historial de Versiones)](CHANGELOG.md)
+**Navegación Rápida:** [Ver Changelog (Historial de Versiones)](CHANGELOG.md)
 
 Este proyecto es un script de **Google Apps Script (GAS)** que se encarga de extraer de forma automática las alarmas (tickets) generadas en Jira, procesarlas, cruzarlas con la base de datos de clientes/PODs alojada en Google Sheets, y enviar un resumen consolidado por canal de Slack.
 
-## 🏗️ Arquitectura del Proyecto (SOLID)
+## Arquitectura del Proyecto (SOLID)
 
 Para garantizar calidad *Enterprise*, el código original ha sido dividido en módulos especializados con responsabilidad única.
 
@@ -48,7 +48,7 @@ El entrypoint para Google Apps Script.
 
 ---
 
-## 🚀 Despliegue y Configuración
+## Despliegue y Configuración
 
 1. **Gestión de Entornos (Pruebas Locales sin molestar a Clientes):**
    Abre `Config.js` y asegúrate de configurar `ENVIRONMENT: 'TESTING'` antes de empezar a programar.
@@ -62,7 +62,7 @@ El entrypoint para Google Apps Script.
    clasp push   # Subir tus cambios al servidor de Google
    ```
 
-## 🛠️ Cómo agregar un nuevo Tipo de Alarma
+## Cómo agregar un nuevo Tipo de Alarma
 
 1. **Traducción Simple:** Ve a la hoja de Google Sheets **"Tipos de Alarmas"** y agrega el nombre en inglés del lado izquierdo, y el nombre comercial del lado derecho. (Recuerda que ya no hay reglas hardcodeadas).
 2. **Parsing Complejo:** Si la alarma tiene un nombre extrañísimo escondido en el summary, agrégale un regex interceptor en `AlarmParser.js`.
