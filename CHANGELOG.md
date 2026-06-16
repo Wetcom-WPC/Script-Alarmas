@@ -4,6 +4,11 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y el proyecto se adhiere a [Semantic Versioning](https://semver.org/).
 
+## [7.6.1] - 2026-06-16
+
+### Fixed
+- **Fallo Silencioso (Main.js):** Se complementó el manejo de errores riguroso de `v7.6.0` agregando un `throw new Error` definitivo al final de `disparadorPrincipal_conAPI` en `Main.js`. Ahora, si ocurre un error catastrófico (como caída de Slack), el script de Google Workspace lo considerará explícitamente como "Fallido" y alertará al NOC por email mediante los triggers del sistema.
+
 ## [7.6.0] - 2026-06-16
 
 ### Added

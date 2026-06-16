@@ -53,6 +53,7 @@ function disparadorPrincipal_conAPI() {
   } catch (e) {
     const errorMsg = "Error crítico en el script: " + e.message;
     Logger.log(errorMsg);
+    throw new Error(errorMsg);
   }
 }
 
