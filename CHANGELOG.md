@@ -4,6 +4,11 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y el proyecto se adhiere a [Semantic Versioning](https://semver.org/).
 
+## [7.8.0] - 2026-06-16
+
+### Added
+- **Estructura de Carpetas (SOLID):** Se reorganizó la estructura del repositorio local separando los archivos en carpetas lógicas (`config/`, `core/`, `services/`, `utils/`) logrando una mejor organización visual en GitHub y en el editor de Apps Script mediante el parseo de barras de Clasp.
+
 ## [7.6.1] - 2026-06-16
 
 ### Fixed
