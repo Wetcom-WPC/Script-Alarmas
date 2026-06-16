@@ -78,5 +78,27 @@ const Tools = {
     }
     
     return campos;
+  },
+
+  /**
+   * Genera programáticamente un trigger para ejecutar el script cada 5 minutos.
+   * Ejecutar una única vez desde el editor de Apps Script.
+   */
+  generarTriggerCada5Minutos: function() {
+    // Elimina triggers anteriores si existen
+    const triggers = ScriptApp.getProjectTriggers();
+    for (let i = 0; i < triggers.length; i++) {
+      if (triggers[i].getHandlerFunction() === 'disparadorPrincipal_conAPI') {
+        ScriptApp.deleteTrigger(triggers[i]);
+      }
+    }
+    
+    // Crea el nuevo trigger
+    ScriptApp.newTrigger('disparadorPrincipal_conAPI')
+      .timeBased()
+      .everyMinutes(5)
+      .create();
+      
+    Logger.log("✅ Trigger creado exitosamente. El script se ejecutará automáticamente cada 5 minutos.");
   }
 };

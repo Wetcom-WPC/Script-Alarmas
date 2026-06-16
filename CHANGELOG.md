@@ -4,11 +4,6 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y el proyecto se adhiere a [Semantic Versioning](https://semver.org/).
 
-## [7.7.0] - 2026-06-16
-
-### Added
-- **Automatización UI:** Se agregaron funciones programáticas `instalarTriggerAutomatico` y `desinstalarTriggerAutomatico` directamente al menú personalizado de Google Sheets. Ahora cualquier operador autorizado puede encender y apagar el envío automático a Slack cada 5 minutos mediante dos clics, sin necesidad de saber programar ni entrar al panel de Triggers de Google Apps Script.
-
 ## [7.6.1] - 2026-06-16
 
 ### Fixed
