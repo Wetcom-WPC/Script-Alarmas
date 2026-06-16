@@ -2,6 +2,9 @@
  * Configuración central del script
  */
 const Config = {
+  // Entorno actual (Cambiar a 'TESTING' para desarrollo/pruebas)
+  ENVIRONMENT: 'PROD',
+
   // Configuración de Jira
   JIRA_BASE_URL: "wetcom.atlassian.net",
   JIRA_FILTER_ID: "23855",
@@ -25,10 +28,13 @@ const Config = {
   },
 
   getSlackWebhookUrl: function() {
-    return this.getPropiedad("SLACK_WEBHOOK_URL_VM");
+    if (this.ENVIRONMENT === 'TESTING') {
+      return this.getPropiedad("SLACK_WEBHOOK_TESTING");
+    }
+    return this.getPropiedad("SLACK_WEBHOOK_PROD");
   },
 
   getJiraAuthToken: function() {
-    return this.getPropiedad("JIRA_AUTH_TOKEN_BASE64");
+    return this.getPropiedad("JIRA_AUTH_TOKEN");
   }
 };

@@ -4,6 +4,18 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y el proyecto se adhiere a [Semantic Versioning](https://semver.org/).
 
+## [7.5.0] - 2026-06-16
+
+### Added
+- **Soporte Multi-entorno:** Se implementó una bandera `ENVIRONMENT` en `Config.js` que permite alternar la ejecución del script entre Producción (`PROD`) y Pruebas (`TESTING`), evitando el envío accidental de falsas alarmas al cliente durante tareas de desarrollo.
+- **Migration Script:** Se añadió `Migration.js`, una función temporal diseñada para ejecutarse una única vez y automatizar el traspaso seguro de las credenciales viejas hacia la nueva nomenclatura sin pérdida de datos.
+
+### Changed
+- **Renombramiento Semántico de Propiedades:** Las variables globales de *PropertiesService* fueron refactorizadas para adoptar estándares limpios:
+  - `JIRA_AUTH_TOKEN_BASE64` ahora es `JIRA_AUTH_TOKEN`
+  - `SLACK_WEBHOOK_URL_VM` ahora es `SLACK_WEBHOOK_TESTING` (reservado para el canal antiguo)
+  - Se introdujo `SLACK_WEBHOOK_PROD` para el nuevo endpoint oficial.
+
 ## [7.4.1] - 2026-06-16
 
 ### Fixed
