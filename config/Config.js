@@ -13,6 +13,11 @@ const Config = {
   // Nombres de hojas de cálculo
   SHEET_CLIENTES: 'Clientes',
   SHEET_TIPOS_ALARMAS: 'Tipos de Alarmas',
+  SHEET_CORREOS_CLIENTES: 'Correos Clientes',
+
+  // Configuración de WebApp para Generador de Borradores
+  // IMPORTANTE: Deberás reemplazar este valor tras hacer la publicación web.
+  WEB_APP_URL: "URL_DE_LA_WEBAPP_AQUI",
 
   /**
    * Obtiene una propiedad de script de forma segura.

@@ -8,13 +8,18 @@ const DataRepository = {
     
     const sheetClientes = ss.getSheetByName(Config.SHEET_CLIENTES);
     const sheetTiposAlarmas = ss.getSheetByName(Config.SHEET_TIPOS_ALARMAS);
+    const sheetCorreosClientes = ss.getSheetByName(Config.SHEET_CORREOS_CLIENTES);
 
     if (!sheetClientes) throw new Error(`La hoja "${Config.SHEET_CLIENTES}" no está disponible.`);
     if (!sheetTiposAlarmas) throw new Error(`La hoja "${Config.SHEET_TIPOS_ALARMAS}" no está disponible.`);
+    
+    // Si la hoja no existe, no rompemos el script (puede que estén en plena migración), solo pasamos un array vacío
+    const correosData = sheetCorreosClientes ? sheetCorreosClientes.getDataRange().getValues() : [];
 
     return {
       mapaClientes: this._createMap(sheetClientes.getDataRange().getValues()),
-      mapaAlarmas: this._createMap(sheetTiposAlarmas.getDataRange().getValues())
+      mapaAlarmas: this._createMap(sheetTiposAlarmas.getDataRange().getValues()),
+      mapaCorreos: this._createMap(correosData)
     };
   },
 

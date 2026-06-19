@@ -21,6 +21,25 @@ const MessageFormatter = {
         mensaje += `*${cliente}*\n\n`;
         const alarmasCliente = mensajesProcesados[pod][cliente];
         mensaje += this._generarDetalleAlarmas(alarmasCliente);
+        
+        // --- INYECCIÓN DEL ENLACE DE BORRADOR ---
+        if (Config.WEB_APP_URL && Config.WEB_APP_URL.startsWith("http")) {
+          try {
+            const htmlBorrador = this._generarDetalleAlarmasHTML(alarmasCliente);
+            const draftId = Utilities.getUuid();
+            const draftPayload = {
+              cliente: cliente,
+              pod: pod,
+              alarmaPricipal: Object.keys(alarmasCliente)[0] || "Incidentes Varios",
+              html: htmlBorrador
+            };
+            CacheService.getScriptCache().put(`draft_${draftId}`, JSON.stringify(draftPayload), 21600); // 6 horas
+            mensaje += `\n📩 <${Config.WEB_APP_URL}?id=${draftId}|*Generar borrador de correo para este cliente*>\n\n`;
+          } catch(e) {
+            // Failsafe: si falla la caché, simplemente no imprimimos el botón, pero no rompemos el proceso principal
+            mensaje += `\n`;
+          }
+        }
       }
 
       if (pod === "WPC") {
@@ -159,5 +178,94 @@ const MessageFormatter = {
     const hours = String(date.getHours()).padStart(2, '0');
     const minutes = String(date.getMinutes()).padStart(2, '0');
     return { date: `${day}/${month}/${year}`, time: `${hours}:${minutes}` };
+  },
+
+  _generarDetalleAlarmasHTML: function(alarmas) {
+    let detalleHTML = "";
+    for (const alarma in alarmas) {
+      const targetsEntries = alarmas[alarma];
+      const todasLasEntradas = Object.values(targetsEntries).flat();
+      const mensajeFecha = this._crearMensajeFecha(todasLasEntradas);
+
+      detalleHTML += `<h3 style="color: #d9534f; margin-bottom: 5px;">${alarma} <span style="font-size: 12px; color: #777;">(${mensajeFecha})</span></h3>\n`;
+
+      let groupByCombination = {};
+
+      for (const targetStr in targetsEntries) {
+        let origen;
+        try {
+           origen = JSON.parse(targetStr);
+        } catch(e) {
+           origen = { vCenter: 'Desconocido', cluster: 'Desconocido', target: targetStr };
+        }
+        
+        let summariesSet = new Set();
+        targetsEntries[targetStr].forEach(entry => {
+          if (entry.summaryResto !== null && entry.summaryResto !== 'N/A' && typeof entry.summaryResto === 'string') {
+            const sumVal = entry.summaryResto.toString().trim();
+            if (sumVal !== "") summariesSet.add(sumVal);
+          }
+        });
+
+        const sortedSummaries = Array.from(summariesSet).sort();
+        const groupKey = JSON.stringify({
+          vCenter: origen.vCenter,
+          cluster: origen.cluster,
+          targetLabel: origen.targetLabel || 'Host/Target',
+          summaries: sortedSummaries
+        });
+
+        if (!groupByCombination[groupKey]) {
+          groupByCombination[groupKey] = {
+            vCenter: origen.vCenter,
+            cluster: origen.cluster,
+            targetLabel: origen.targetLabel || 'Host/Target',
+            summaries: sortedSummaries,
+            targets: []
+          };
+        }
+
+        groupByCombination[groupKey].targets.push(origen.target);
+      }
+
+      for (const key in groupByCombination) {
+        const group = groupByCombination[key];
+        detalleHTML += `<ul style="margin-top: 5px; margin-bottom: 10px;">`;
+        
+        if (group.vCenter && !group.vCenter.toLowerCase().includes('desconocido')) {
+          detalleHTML += `<li><b>vCenter:</b> ${group.vCenter}</li>`;
+        }
+        
+        if (group.cluster && !group.cluster.toLowerCase().includes('desconocido') && group.targetLabel !== 'Cluster') {
+          detalleHTML += `<ul style="margin-top: 2px;"><li><b>Cluster:</b> ${group.cluster}</li></ul>`;
+        }
+        
+        detalleHTML += `<ul style="margin-top: 2px;">`;
+        group.targets.forEach(targetName => {
+          if (targetName && !targetName.toLowerCase().includes('desconocido') && !targetName.toLowerCase().includes('no encontrado')) {
+            detalleHTML += `<li><b>${group.targetLabel}:</b> ${targetName}</li>`;
+          }
+        });
+        
+        if (group.summaries.length > 0) {
+          detalleHTML += `<ul style="margin-top: 2px;">`;
+          group.summaries.forEach(summary => {
+            if (summary.indexOf('\n') !== -1) {
+              const lines = summary.split('\n');
+              for (let i = 0; i < lines.length; i++) {
+                detalleHTML += `<li><i>${lines[i].trim()}</i></li>`;
+              }
+            } else {
+              detalleHTML += `<li><i>${summary}</i></li>`;
+            }
+          });
+          detalleHTML += `</ul>`; // Cierra summaries
+        }
+        detalleHTML += `</ul>`; // Cierra targets
+        detalleHTML += `</ul>`; // Cierra vCenter master
+      }
+      detalleHTML += `<br>`;
+    }
+    return detalleHTML;
   }
 };
