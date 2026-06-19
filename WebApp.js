@@ -29,20 +29,17 @@ function doGet(e) {
     const subject = `${info.alarmaPricipal} - WETCOM - ${info.cliente} - ${fechaAsunto}`;
     
     // Armar el cuerpo corporativo
+    // Nota: Dejamos el espacio final libre para que el operador pueda insertar su firma corporativa de Gmail.
     const cuerpoFinal = `
-      <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #333; max-width: 800px; text-align: left;">
-        <p style="font-size: 15px; margin-bottom: 20px;">Estimados, ¿cómo están? Me comunico para informarles que recibimos las siguientes alarmas en su entorno:</p>
+      <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #333; font-size: 14px; max-width: 800px; text-align: left;">
+        <p style="margin-bottom: 20px;">Estimados, ¿cómo están? Me comunico para informarles que recibimos las siguientes alarmas:</p>
         
         ${info.html}
         
-        <p style="font-size: 15px; margin-top: 20px; margin-bottom: 10px;">Ante esto les consulto: ¿Están al tanto de las anomalías? ¿Desean que generemos un ticket para analizar el incidente en profundidad?</p>
-        <p style="font-size: 15px; margin-top: 0; margin-bottom: 20px;">Aguardamos sus comentarios.</p>
-        
-        <hr style="border: 0; border-top: 1px solid #eee; margin-top: 20px; margin-bottom: 15px;">
-        <p style="font-size: 12px; color: #666; margin-top: 0;">Saludos cordiales,<br><b>Wetcom Proactive Center</b></p>
+        <p style="margin-top: 20px; margin-bottom: 30px;">Ante esto les consulto: ¿Están al tanto de las anomalías? ¿Desean que generemos un ticket para analizar la anomalía en profundidad?</p>
       </div>`;
 
-    GmailApp.createDraft(dest, subject, "Por favor, active HTML para ver el formato corporativo.", {
+    GmailApp.createDraft(dest, subject, "Por favor, active HTML para ver el formato.", {
       htmlBody: cuerpoFinal,
       name: "Soporte Wetcom" 
     });

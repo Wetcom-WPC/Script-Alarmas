@@ -34,10 +34,10 @@ const MessageFormatter = {
               html: htmlBorrador
             };
             CacheService.getScriptCache().put(`draft_${draftId}`, JSON.stringify(draftPayload), 21600); // 6 horas
-            mensaje += `\n📩 <${Config.WEB_APP_URL}?id=${draftId}|*Generar borrador de correo para este cliente*>\n\n`;
+            mensaje += `\n📩 <${Config.WEB_APP_URL}?id=${draftId}|Generar correo para este cliente>\n\n\n`;
           } catch(e) {
             // Failsafe: si falla la caché, simplemente no imprimimos el botón, pero no rompemos el proceso principal
-            mensaje += `\n`;
+            mensaje += `\n\n`;
           }
         }
       }
@@ -181,13 +181,14 @@ const MessageFormatter = {
   },
 
   _generarDetalleAlarmasHTML: function(alarmas) {
-    let detalleHTML = "";
+    let detalleHTML = `<ul style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; font-size: 14px; line-height: 1.5; color: #333; margin-top: 10px; margin-bottom: 20px;">`;
+    
     for (const alarma in alarmas) {
       const targetsEntries = alarmas[alarma];
       const todasLasEntradas = Object.values(targetsEntries).flat();
       const mensajeFecha = this._crearMensajeFecha(todasLasEntradas);
 
-      detalleHTML += `<h3 style="color: #d9534f; margin-bottom: 5px;">${alarma} <span style="font-size: 12px; color: #777;">(${mensajeFecha})</span></h3>\n`;
+      detalleHTML += `<li><b>${alarma}</b> <i>(${mensajeFecha})</i>\n<ul style="margin-top: 4px; margin-bottom: 10px;">\n`;
 
       let groupByCombination = {};
 
@@ -230,42 +231,49 @@ const MessageFormatter = {
 
       for (const key in groupByCombination) {
         const group = groupByCombination[key];
-        detalleHTML += `<ul style="margin-top: 5px; margin-bottom: 10px;">`;
+        
+        let indentacionVcenterCerrada = false;
         
         if (group.vCenter && !group.vCenter.toLowerCase().includes('desconocido')) {
-          detalleHTML += `<li><b>vCenter:</b> ${group.vCenter}</li>`;
+          detalleHTML += `<li><b>vCenter:</b> ${group.vCenter}\n<ul style="margin-top: 2px;">\n`;
+          indentacionVcenterCerrada = true;
         }
         
+        let indentacionClusterCerrada = false;
         if (group.cluster && !group.cluster.toLowerCase().includes('desconocido') && group.targetLabel !== 'Cluster') {
-          detalleHTML += `<ul style="margin-top: 2px;"><li><b>Cluster:</b> ${group.cluster}</li></ul>`;
+          detalleHTML += `<li><b>Cluster:</b> ${group.cluster}\n<ul style="margin-top: 2px;">\n`;
+          indentacionClusterCerrada = true;
         }
         
-        detalleHTML += `<ul style="margin-top: 2px;">`;
         group.targets.forEach(targetName => {
           if (targetName && !targetName.toLowerCase().includes('desconocido') && !targetName.toLowerCase().includes('no encontrado')) {
-            detalleHTML += `<li><b>${group.targetLabel}:</b> ${targetName}</li>`;
+            detalleHTML += `<li><b>${group.targetLabel}:</b> ${targetName}\n`;
+            
+            // Si hay summaries, los ponemos anidados adentro del target
+            if (group.summaries.length > 0) {
+              detalleHTML += `<ul style="margin-top: 2px;">\n`;
+              group.summaries.forEach(summary => {
+                if (summary.indexOf('\n') !== -1) {
+                  const lines = summary.split('\n');
+                  for (let i = 0; i < lines.length; i++) {
+                    detalleHTML += `<li><i>${lines[i].trim()}</i></li>\n`;
+                  }
+                } else {
+                  detalleHTML += `<li><i>${summary}</i></li>\n`;
+                }
+              });
+              detalleHTML += `</ul>\n`; // Cierra summaries
+            }
+            detalleHTML += `</li>\n`; // Cierra target
           }
         });
         
-        if (group.summaries.length > 0) {
-          detalleHTML += `<ul style="margin-top: 2px;">`;
-          group.summaries.forEach(summary => {
-            if (summary.indexOf('\n') !== -1) {
-              const lines = summary.split('\n');
-              for (let i = 0; i < lines.length; i++) {
-                detalleHTML += `<li><i>${lines[i].trim()}</i></li>`;
-              }
-            } else {
-              detalleHTML += `<li><i>${summary}</i></li>`;
-            }
-          });
-          detalleHTML += `</ul>`; // Cierra summaries
-        }
-        detalleHTML += `</ul>`; // Cierra targets
-        detalleHTML += `</ul>`; // Cierra vCenter master
+        if (indentacionClusterCerrada) detalleHTML += `</ul></li>\n`;
+        if (indentacionVcenterCerrada) detalleHTML += `</ul></li>\n`;
       }
-      detalleHTML += `<br>`;
+      detalleHTML += `</ul></li>\n`; // Cierra la alarma principal
     }
+    detalleHTML += `</ul>`; // Cierra la lista general
     return detalleHTML;
   }
 };
