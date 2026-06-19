@@ -17,7 +17,7 @@ const Config = {
 
   // Configuración de WebApp para Generador de Borradores
   // IMPORTANTE: Deberás reemplazar este valor tras hacer la publicación web.
-  WEB_APP_URL: "URL_DE_LA_WEBAPP_AQUI",
+  WEB_APP_URL: "https://script.google.com/a/macros/wetcom.com/s/AKfycbw-ZHuJoFYN4hhOB-GJPwegSIjsbh5VURmTyFTc5_zOKG1WUIQE-IdxIyuMXRZNYYY/exec",
 
   /**
    * Obtiene una propiedad de script de forma segura.
