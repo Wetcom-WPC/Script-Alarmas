@@ -39,9 +39,20 @@ function doGet(e) {
         <p style="margin-top: 20px; margin-bottom: 30px;">Ante esto les consulto: ¿Están al tanto de las anomalías? ¿Desean que generemos un ticket para analizar la anomalía en profundidad?</p>
       </div>`;
 
+    // Construir lista de CC dinámicamente
+    let correosCC = "wpc@wetcom.com";
+    if (info.pod) {
+      const p = info.pod.toString().toLowerCase().replace(/\s+/g, '');
+      if (p !== "wpc" && !p.includes("desconocido")) {
+        const podEmail = p.startsWith("pod") ? `${p}@wetcom.com` : `pod${p}@wetcom.com`;
+        correosCC += `, ${podEmail}`;
+      }
+    }
+
     GmailApp.createDraft(dest, subject, "Por favor, active HTML para ver el formato.", {
       htmlBody: cuerpoFinal,
-      name: "Soporte Wetcom" 
+      name: "Soporte Wetcom",
+      cc: correosCC
     });
 
     return HtmlService.createHtmlOutput(`
