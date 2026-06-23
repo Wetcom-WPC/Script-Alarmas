@@ -236,14 +236,25 @@ const MessageFormatter = {
         
         const targetsText = group.targets.filter(t => t && !t.toLowerCase().includes('desconocido') && !t.toLowerCase().includes('no encontrado')).join('<br>') || 'N/A';
         
-        let sitioText = '';
+        let vcenterHtml = '';
         if (group.vCenter && !group.vCenter.toLowerCase().includes('desconocido')) {
-          sitioText += `vCenter: ${group.vCenter}<br>`;
+          vcenterHtml += `
+            <tr style="border-bottom: 1px solid #e0e0e0;">
+              <td style="padding: 12px 15px; font-weight: bold; color: #555; background-color: #f9f9f9; text-transform: uppercase;">VCENTER</td>
+              <td style="padding: 12px 15px; color: #666; line-height: 1.5;">${group.vCenter}</td>
+            </tr>
+          `;
         }
+
+        let clusterHtml = '';
         if (group.cluster && !group.cluster.toLowerCase().includes('desconocido') && group.targetLabel !== 'Cluster') {
-          sitioText += `Cluster: ${group.cluster}`;
+          clusterHtml += `
+            <tr style="border-bottom: 1px solid #e0e0e0;">
+              <td style="padding: 12px 15px; font-weight: bold; color: #555; background-color: #f9f9f9; text-transform: uppercase;">CLUSTER</td>
+              <td style="padding: 12px 15px; color: #666; line-height: 1.5;">${group.cluster}</td>
+            </tr>
+          `;
         }
-        if (sitioText === '') sitioText = 'N/A';
         
         let summariesHTML = '<ul style="margin: 0; padding-left: 20px; color: #666;">';
         if (group.summaries.length > 0) {
@@ -274,13 +285,11 @@ const MessageFormatter = {
               <td style="padding: 12px 15px; color: #666;">${mensajeFecha.replace('El día ', '').replace('Desde el día ', 'Desde el ')}</td>
             </tr>
             <tr style="border-bottom: 1px solid #e0e0e0;">
-              <td style="padding: 12px 15px; font-weight: bold; color: #555; background-color: #f9f9f9; text-transform: uppercase;">TARGET</td>
+              <td style="padding: 12px 15px; font-weight: bold; color: #555; background-color: #f9f9f9; text-transform: uppercase;">${group.targetLabel.toUpperCase()}</td>
               <td style="padding: 12px 15px; color: #444; font-family: 'Courier New', Courier, monospace; font-size: 14px;">${targetsText}</td>
             </tr>
-            <tr style="border-bottom: 1px solid #e0e0e0;">
-              <td style="padding: 12px 15px; font-weight: bold; color: #555; background-color: #f9f9f9; text-transform: uppercase;">SITIO</td>
-              <td style="padding: 12px 15px; color: #666; line-height: 1.5;">${sitioText}</td>
-            </tr>
+            ${vcenterHtml}
+            ${clusterHtml}
             <tr>
               <td style="padding: 12px 15px; font-weight: bold; color: #555; background-color: #f9f9f9; text-transform: uppercase; vertical-align: top;">DETALLE</td>
               <td style="padding: 12px 15px; vertical-align: top;">${summariesHTML}</td>
