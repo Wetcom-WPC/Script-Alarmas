@@ -46,13 +46,12 @@ const MessageFormatter = {
             } else if (Config.DRAFTS_FOLDER_ID && Config.DRAFTS_FOLDER_ID.trim() !== "") {
               const folder = DriveApp.getFolderById(Config.DRAFTS_FOLDER_ID);
               
-              // Failsafe 2: Buscar en Drive si ya existe un archivo con ese Hash (por si expiró la caché)
-              const existingFiles = folder.searchFiles(`title contains '${draftHash}' and trashed = false`);
+              // Failsafe 2: Buscar en Drive si ya existe un archivo con ese Hash (búsqueda exacta)
+              const existingFiles = folder.searchFiles(`title = '${draftHash}.json' and trashed = false`);
               if (existingFiles.hasNext()) {
                 draftId = existingFiles.next().getId();
               } else {
-                const fechaStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd_HH-mm-ss");
-                const fileName = `[BORRADOR] - ${cliente} - ${fechaStr} - ${draftHash}.json`;
+                const fileName = `${draftHash}.json`;
                 const file = folder.createFile(fileName, payloadStr, MimeType.PLAIN_TEXT);
                 draftId = file.getId();
               }
