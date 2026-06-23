@@ -26,17 +26,31 @@ const MessageFormatter = {
         if (Config.WEB_APP_URL && Config.WEB_APP_URL.startsWith("http")) {
           try {
             const htmlBorrador = this._generarDetalleAlarmasHTML(alarmasCliente);
-            const draftId = Utilities.getUuid();
             const draftPayload = {
               cliente: cliente,
               pod: pod,
               alarmaPricipal: Object.keys(alarmasCliente)[0] || "Incidentes Varios",
               html: htmlBorrador
             };
-            CacheService.getScriptCache().put(`draft_${draftId}`, JSON.stringify(draftPayload), 21600); // 6 horas
+            
+            let draftId = null;
+            if (Config.DRAFTS_FOLDER_ID && Config.DRAFTS_FOLDER_ID.trim() !== "") {
+              // Guardado persistente en Google Drive (Resuelve límite de 6 horas)
+              const folder = DriveApp.getFolderById(Config.DRAFTS_FOLDER_ID);
+              const fechaStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd_HH-mm-ss");
+              const fileName = `[BORRADOR] - ${cliente} - ${fechaStr}.json`;
+              const file = folder.createFile(fileName, JSON.stringify(draftPayload), MimeType.PLAIN_TEXT);
+              draftId = file.getId();
+            } else {
+              // Fallback a Caché temporal si la carpeta no fue configurada aún
+              draftId = Utilities.getUuid();
+              CacheService.getScriptCache().put(`draft_${draftId}`, JSON.stringify(draftPayload), 21600); // 6 horas
+            }
+            
             mensaje += `\n📩 <${Config.WEB_APP_URL}?id=${draftId}|Generar correo para este cliente>\n\n\n`;
           } catch(e) {
-            // Failsafe: si falla la caché, simplemente no imprimimos el botón, pero no rompemos el proceso principal
+            Logger.log("Error al generar borrador (Cache/Drive): " + e.message);
+            // Failsafe: si falla la generación, no imprimimos el botón, pero no rompemos el proceso principal
             mensaje += `\n\n`;
           }
         }

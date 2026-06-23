@@ -10,7 +10,17 @@ function doGet(e) {
       return HtmlService.createHtmlOutput('<div style="font-family: sans-serif; text-align: center; margin-top: 50px;"><h2 style="color: #d9534f;">⚠️ Enlace Inválido</h2><p>Falta el identificador de la alarma.</p></div>');
     }
 
-    const dataGuardada = CacheService.getScriptCache().get(`draft_${draftId}`);
+    let dataGuardada = null;
+    
+    // 1. Intentar buscar en Google Drive
+    try {
+      const file = DriveApp.getFileById(draftId);
+      dataGuardada = file.getBlob().getDataAsString();
+    } catch(err) {
+      // 2. Fallback a la caché si no es un ID de archivo válido o fue borrado
+      dataGuardada = CacheService.getScriptCache().get(`draft_${draftId}`);
+    }
+
     if (!dataGuardada) {
       return HtmlService.createHtmlOutput('<div style="font-family: sans-serif; text-align: center; margin-top: 50px;"><h2 style="color: #d9534f;">⚠️ Código expirado o procesado</h2><p>Este borrador ya caducó (pasaron más de 6 horas) o no existe.</p></div>');
     }

@@ -16,9 +16,15 @@ const Config = {
   SHEET_CORREOS_CLIENTES: 'Correos Clientes',
   SHEET_EXCEPCIONES: 'Excepciones',
 
+  // Lista de nombres de alarma que se descartan automáticamente por diseño
+  ALARMAS_IGNORADAS_POR_DEFECTO: ['Alarma de vROps', 'Alarma de vRO'],
+
+  // ID de la carpeta en Google Drive donde se guardarán los borradores (.json)
+  DRAFTS_FOLDER_ID: "",
+
   // Configuración de WebApp para Generador de Borradores
   // IMPORTANTE: Deberás reemplazar este valor tras hacer la publicación web.
-  WEB_APP_URL: "https://script.google.com/a/macros/wetcom.com/s/AKfycbw-ZHuJoFYN4hhOB-GJPwegSIjsbh5VURmTyFTc5_zOKG1WUIQE-IdxIyuMXRZNYYY/exec",
+  WEB_APP_URL: "https://script.google.com/macros/s/AKfycbw-ZHuJoFYN4hhOB-GJPwegSIjsbh5VURmTyFTc5_zOKG1WUIQE-IdxIyuMXRZNYYY/exec",
 
   /**
    * Obtiene una propiedad de script de forma segura.

@@ -130,6 +130,37 @@ const Tools = {
     } else {
       Logger.log("La pestaña 'Excepciones' ya existe.");
     }
+  },
+
+  /**
+   * Elimina borradores (.json) en Drive que tengan más de 7 días de antigüedad.
+   */
+  limpiarBorradoresViejos: function() {
+    if (!Config.DRAFTS_FOLDER_ID || Config.DRAFTS_FOLDER_ID.trim() === "") {
+      Logger.log("No hay carpeta de borradores configurada en Config.js.");
+      return;
+    }
+    
+    try {
+      const folder = DriveApp.getFolderById(Config.DRAFTS_FOLDER_ID);
+      const limitDate = new Date();
+      limitDate.setDate(limitDate.getDate() - 7); // Archivos más antiguos a 7 días
+      
+      const files = folder.getFiles();
+      let eliminados = 0;
+      
+      while (files.hasNext()) {
+        const file = files.next();
+        if (file.getDateCreated() < limitDate) {
+          file.setTrashed(true);
+          eliminados++;
+        }
+      }
+      
+      Logger.log(`Limpieza completada. Se enviaron ${eliminados} borradores antiguos a la papelera.`);
+    } catch(e) {
+      Logger.log("Error al limpiar borradores viejos: " + e.message);
+    }
   }
 };
 
@@ -139,4 +170,11 @@ const Tools = {
  */
 function runnerCrearHojaExcepciones() {
   Tools.crearHojaExcepciones();
+}
+
+/**
+ * Función global para invocar la limpieza programada de borradores desde los Triggers de Apps Script.
+ */
+function runnerLimpiarBorradoresViejos() {
+  Tools.limpiarBorradoresViejos();
 }

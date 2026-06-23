@@ -6,6 +6,7 @@ const AlarmProcessor = {
   procesarAlarmas: function(issues, mappings) {
     const errores = [];
     const mensajesProcesados = {};
+    const alarmasSilenciadas = [];
 
     issues.forEach((issue, index) => {
       const warnings = [];
@@ -41,7 +42,9 @@ const AlarmProcessor = {
         summaryResto = formato.nuevoSummary;
 
         // Filtrado por reglas de Excepciones dinámicas
-        if (this._verificarExcepcion(pod, cliente, origen.target, issue.summary, mappings.reglasExcepcion)) {
+        const excepcion = this._verificarExcepcion(pod, cliente, origen.target, issue.summary, mappings.reglasExcepcion);
+        if (excepcion.matcheada) {
+          alarmasSilenciadas.push(excepcion.log);
           return; // La alarma cae dentro de una ventana de mantenimiento o excepción, se omite.
         }
 
@@ -55,7 +58,7 @@ const AlarmProcessor = {
       }
     });
 
-    return { mensajesProcesados, errores };
+    return { mensajesProcesados, errores, alarmasSilenciadas };
   },
 
   _obtenerClaveCliente: function(key, mapaClientes) {
@@ -64,7 +67,7 @@ const AlarmProcessor = {
   },
 
   _formatearAlarmaPorTipo: function(tipoAlarma, summaryResto, target, description) {
-    const alarmasExcluir = ['Alarma de vROps', 'Alarma de vRO'];
+    const alarmasExcluir = Config.ALARMAS_IGNORADAS_POR_DEFECTO || [];
     
     // Si el tipo de alarma coincide exacto con los estáticos, o si en cualquier parte contiene "falso positivo"
     if (alarmasExcluir.includes(tipoAlarma) || tipoAlarma.toLowerCase().includes('falso positivo')) {
@@ -109,7 +112,7 @@ const AlarmProcessor = {
   },
 
   _verificarExcepcion: function(pod, cliente, target, summary, reglas) {
-    if (!reglas || reglas.length === 0) return false;
+    if (!reglas || reglas.length === 0) return { matcheada: false };
     
     const podStr = pod.toString().toUpperCase().replace(/\s+/g, '');
     const clienteStr = cliente.toString().toUpperCase().trim();
@@ -122,15 +125,13 @@ const AlarmProcessor = {
       
       if (aplicaPod && aplicaCliente) {
         if (textoAAnalizar.includes(regla.palabraClave)) {
-          try {
-            SlackService.enviarLogExcepcion(`Alarma omitida para *${cliente}* en POD ${pod}.\n*Target / Summary:* ${target} | ${summary}\n*Palabra Clave Matcheada:* \`${regla.palabraClave}\``);
-          } catch(e) {
-            Logger.log("Error enviando log de excepción: " + e.message);
-          }
-          return true;
+          return {
+            matcheada: true,
+            log: `Alarma omitida para *${cliente}* en POD ${pod}.\n*Target / Summary:* ${target} | ${summary}\n*Palabra Clave Matcheada:* \`${regla.palabraClave}\``
+          };
         }
       }
     }
-    return false;
+    return { matcheada: false };
   }
 };

@@ -25,22 +25,33 @@ function _obtenerMensajeFinal() {
   const mappings = DataRepository.getMappings();
   
   // 3. Procesa las alarmas cruzando la información con los mappings
-  const { mensajesProcesados, errores } = AlarmProcessor.procesarAlarmas(issues, mappings);
+  const { mensajesProcesados, errores, alarmasSilenciadas } = AlarmProcessor.procesarAlarmas(issues, mappings);
   
   // 4. Formatea el mensaje de Slack agrupando por PODs, Clientes, etc.
   const mensajeFinal = MessageFormatter.generarMensaje(mensajesProcesados, errores);
   
   if (!mensajeFinal || mensajeFinal.trim() === "") {
-    return { exito: false, mensaje: "Las alarmas obtenidas fueron filtradas/excluidas (ej: Falsos Positivos). No hay nada nuevo para enviar." };
+    return { exito: false, mensaje: "Las alarmas obtenidas fueron filtradas/excluidas (ej: Falsos Positivos). No hay nada nuevo para enviar.", alarmasSilenciadas };
   }
   
-  return { exito: true, mensaje: mensajeFinal };
+  return { exito: true, mensaje: mensajeFinal, alarmasSilenciadas };
 }
 
 function disparadorPrincipal_conAPI() {
   try {
     const resultado = _obtenerMensajeFinal();
     
+    // Enviar logs de excepciones independientemente del exito del mensaje principal
+    if (resultado.alarmasSilenciadas && resultado.alarmasSilenciadas.length > 0) {
+      resultado.alarmasSilenciadas.forEach(log => {
+        try {
+          SlackService.enviarLogExcepcion(log);
+        } catch(e) {
+          Logger.log("Error enviando log de excepción: " + e.message);
+        }
+      });
+    }
+
     if (!resultado.exito) {
       Logger.log(resultado.mensaje);
       return;
@@ -62,6 +73,11 @@ function disparadorPrincipal_Local() {
     const resultado = _obtenerMensajeFinal();
     const ui = SpreadsheetApp.getUi();
     
+    if (resultado.alarmasSilenciadas && resultado.alarmasSilenciadas.length > 0) {
+      Logger.log("--- ALARMAS SILENCIADAS ---");
+      resultado.alarmasSilenciadas.forEach(log => Logger.log(log));
+    }
+
     if (!resultado.exito) {
       ui.alert("Aviso", resultado.mensaje, ui.ButtonSet.OK);
       return;
