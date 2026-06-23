@@ -33,24 +33,40 @@ const MessageFormatter = {
               html: htmlBorrador
             };
             
+            const payloadStr = JSON.stringify(draftPayload);
+            const draftHash = this._generateMD5(payloadStr);
             let draftId = null;
-            if (Config.DRAFTS_FOLDER_ID && Config.DRAFTS_FOLDER_ID.trim() !== "") {
-              // Guardado persistente en Google Drive (Resuelve límite de 6 horas)
+            
+            // Verificamos si ya existe en caché para deduplicar rápidamente
+            const cache = CacheService.getScriptCache();
+            const cachedId = cache.get(`hash_${draftHash}`);
+            
+            if (cachedId) {
+              draftId = cachedId;
+            } else if (Config.DRAFTS_FOLDER_ID && Config.DRAFTS_FOLDER_ID.trim() !== "") {
               const folder = DriveApp.getFolderById(Config.DRAFTS_FOLDER_ID);
-              const fechaStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd_HH-mm-ss");
-              const fileName = `[BORRADOR] - ${cliente} - ${fechaStr}.json`;
-              const file = folder.createFile(fileName, JSON.stringify(draftPayload), MimeType.PLAIN_TEXT);
-              draftId = file.getId();
+              
+              // Failsafe 2: Buscar en Drive si ya existe un archivo con ese Hash (por si expiró la caché)
+              const existingFiles = folder.searchFiles(`title contains '${draftHash}' and trashed = false`);
+              if (existingFiles.hasNext()) {
+                draftId = existingFiles.next().getId();
+              } else {
+                const fechaStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "yyyy-MM-dd_HH-mm-ss");
+                const fileName = `[BORRADOR] - ${cliente} - ${fechaStr} - ${draftHash}.json`;
+                const file = folder.createFile(fileName, payloadStr, MimeType.PLAIN_TEXT);
+                draftId = file.getId();
+              }
+              cache.put(`hash_${draftHash}`, draftId, 21600); // 6 horas
             } else {
               // Fallback a Caché temporal si la carpeta no fue configurada aún
               draftId = Utilities.getUuid();
-              CacheService.getScriptCache().put(`draft_${draftId}`, JSON.stringify(draftPayload), 21600); // 6 horas
+              cache.put(`draft_${draftId}`, payloadStr, 21600); 
+              cache.put(`hash_${draftHash}`, draftId, 21600); 
             }
             
             mensaje += `\n📩 <${Config.WEB_APP_URL}?id=${draftId}|Generar correo para este cliente>\n\n\n`;
           } catch(e) {
             Logger.log("Error al generar borrador (Cache/Drive): " + e.message);
-            // Failsafe: si falla la generación, no imprimimos el botón, pero no rompemos el proceso principal
             mensaje += `\n\n`;
           }
         }
@@ -315,9 +331,22 @@ const MessageFormatter = {
     }
     
     detalleHTML += `
-    </div>
-    `;
-    
+    </div>`;
+
     return detalleHTML;
+  },
+
+  /**
+   * Genera un Hash MD5 en formato Hexadecimal para deduplicación
+   */
+  _generateMD5: function(str) {
+    const digest = Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, str, Utilities.Charset.UTF_8);
+    let hexString = '';
+    for (let i = 0; i < digest.length; i++) {
+      let hex = (digest[i] < 0 ? digest[i] + 256 : digest[i]).toString(16);
+      if (hex.length == 1) hex = '0' + hex;
+      hexString += hex;
+    }
+    return hexString;
   }
 };
