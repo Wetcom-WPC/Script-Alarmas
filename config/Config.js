@@ -20,7 +20,7 @@ const Config = {
   ALARMAS_IGNORADAS_POR_DEFECTO: ['Alarma de vROps', 'Alarma de vRO'],
 
   // ID de la carpeta en Google Drive donde se guardarán los borradores (.json)
-  DRAFTS_FOLDER_ID: "",
+  DRAFTS_FOLDER_ID: "15jcl2qwSy0obc_ETqylaxKAW3Lw4sG_V",
 
   // Configuración de WebApp para Generador de Borradores
   // IMPORTANTE: Deberás reemplazar este valor tras hacer la publicación web.
