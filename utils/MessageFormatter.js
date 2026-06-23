@@ -182,31 +182,12 @@ const MessageFormatter = {
 
   _generarDetalleAlarmasHTML: function(alarmas) {
     let detalleHTML = `
-    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 800px; border: 1px solid #e0e0e0; border-left: 5px solid #f0ad4e; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-top: 15px; margin-bottom: 25px; overflow: hidden;">
-      <div style="background-color: #f0ad4e; color: #fff; padding: 10px 15px; font-weight: bold; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px;">
-        ⚠️ ALERTAS REGISTRADAS
-      </div>
-      <table style="width: 100%; border-collapse: collapse; font-size: 13px; background-color: #fff;">
-        <thead>
-          <tr style="background-color: #fafafa; border-bottom: 1px solid #eee;">
-            <th style="padding: 12px 15px; text-align: left; width: 70%; color: #333; font-weight: 600;">Descripción del Incidente</th>
-            <th style="padding: 12px 15px; text-align: right; width: 30%; color: #333; font-weight: 600;">Fecha / Hora</th>
-          </tr>
-        </thead>
-        <tbody>
+    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 800px; border-left: 5px solid #00875a; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-top: 15px; margin-bottom: 25px; padding: 15px 20px; background-color: #fcfcfc;">
+      <h2 style="color: #00875a; font-size: 18px; margin-top: 0; margin-bottom: 20px;">Incidentes Registrados</h2>
     `;
     
     for (const alarma in alarmas) {
       const targetsEntries = alarmas[alarma];
-      const todasLasEntradas = Object.values(targetsEntries).flat();
-      const mensajeFecha = this._crearMensajeFecha(todasLasEntradas);
-
-      detalleHTML += `
-          <tr style="border-bottom: 1px solid #eee;">
-            <td style="padding: 15px; vertical-align: top; color: #444;">
-              <div style="font-weight: bold; font-size: 14px; margin-bottom: 8px; color: #222;">${alarma}</div>
-              <ul style="margin: 0; padding-left: 20px; line-height: 1.5;">
-      `;
 
       let groupByCombination = {};
 
@@ -240,69 +221,77 @@ const MessageFormatter = {
             cluster: origen.cluster,
             targetLabel: origen.targetLabel || 'Host/Target',
             summaries: sortedSummaries,
-            targets: []
+            targets: [],
+            entries: []
           };
         }
 
         groupByCombination[groupKey].targets.push(origen.target);
+        groupByCombination[groupKey].entries.push(...targetsEntries[targetStr]);
       }
 
       for (const key in groupByCombination) {
         const group = groupByCombination[key];
+        const mensajeFecha = this._crearMensajeFecha(group.entries);
         
-        let indentacionVcenterCerrada = false;
+        const targetsText = group.targets.filter(t => t && !t.toLowerCase().includes('desconocido') && !t.toLowerCase().includes('no encontrado')).join('<br>') || 'N/A';
         
+        let sitioText = '';
         if (group.vCenter && !group.vCenter.toLowerCase().includes('desconocido')) {
-          detalleHTML += `<li style="margin-bottom: 3px;"><b>vCenter:</b> ${group.vCenter}\n<ul style="margin-top: 2px; padding-left: 20px;">\n`;
-          indentacionVcenterCerrada = true;
+          sitioText += `vCenter: ${group.vCenter}<br>`;
         }
-        
-        let indentacionClusterCerrada = false;
         if (group.cluster && !group.cluster.toLowerCase().includes('desconocido') && group.targetLabel !== 'Cluster') {
-          detalleHTML += `<li style="margin-bottom: 3px;"><b>Cluster:</b> ${group.cluster}\n<ul style="margin-top: 2px; padding-left: 20px;">\n`;
-          indentacionClusterCerrada = true;
+          sitioText += `Cluster: ${group.cluster}`;
         }
+        if (sitioText === '') sitioText = 'N/A';
         
-        group.targets.forEach(targetName => {
-          if (targetName && !targetName.toLowerCase().includes('desconocido') && !targetName.toLowerCase().includes('no encontrado')) {
-            detalleHTML += `<li style="margin-bottom: 3px;"><b>${group.targetLabel}:</b> ${targetName}\n`;
-            
-            // Si hay summaries, los ponemos anidados adentro del target
-            if (group.summaries.length > 0) {
-              detalleHTML += `<ul style="margin-top: 2px; padding-left: 20px; color: #666;">\n`;
-              group.summaries.forEach(summary => {
-                if (summary.indexOf('\n') !== -1) {
-                  const lines = summary.split('\n');
-                  for (let i = 0; i < lines.length; i++) {
-                    detalleHTML += `<li><i>${lines[i].trim()}</i></li>\n`;
-                  }
-                } else {
-                  detalleHTML += `<li><i>${summary}</i></li>\n`;
-                }
-              });
-              detalleHTML += `</ul>\n`; // Cierra summaries
+        let summariesHTML = '<ul style="margin: 0; padding-left: 20px; color: #666;">';
+        if (group.summaries.length > 0) {
+          group.summaries.forEach(summary => {
+            if (summary.indexOf('\n') !== -1) {
+              const lines = summary.split('\n');
+              for (let i = 0; i < lines.length; i++) {
+                summariesHTML += `<li>${lines[i].trim()}</li>`;
+              }
+            } else {
+              summariesHTML += `<li>${summary}</li>`;
             }
-            detalleHTML += `</li>\n`; // Cierra target
-          }
-        });
-        
-        if (indentacionClusterCerrada) detalleHTML += `</ul></li>\n`;
-        if (indentacionVcenterCerrada) detalleHTML += `</ul></li>\n`;
+          });
+        } else {
+          summariesHTML += `<li>Sin detalles adicionales</li>`;
+        }
+        summariesHTML += '</ul>';
+
+        detalleHTML += `
+        <table style="width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 20px; border: 1px solid #e0e0e0; background-color: #fff;">
+          <tbody>
+            <tr style="border-bottom: 1px solid #e0e0e0;">
+              <td style="padding: 12px 15px; width: 20%; font-weight: bold; color: #555; background-color: #f0f7f4; text-transform: uppercase;">ALARMA</td>
+              <td style="padding: 12px 15px; width: 80%; color: #222;"><b>${alarma}</b></td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e0e0e0;">
+              <td style="padding: 12px 15px; font-weight: bold; color: #555; background-color: #f9f9f9; text-transform: uppercase;">FECHA</td>
+              <td style="padding: 12px 15px; color: #666;">${mensajeFecha.replace('El día ', '').replace('Desde el día ', 'Desde el ')}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e0e0e0;">
+              <td style="padding: 12px 15px; font-weight: bold; color: #555; background-color: #f9f9f9; text-transform: uppercase;">TARGET</td>
+              <td style="padding: 12px 15px; color: #444; font-family: 'Courier New', Courier, monospace; font-size: 14px;">${targetsText}</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e0e0e0;">
+              <td style="padding: 12px 15px; font-weight: bold; color: #555; background-color: #f9f9f9; text-transform: uppercase;">SITIO</td>
+              <td style="padding: 12px 15px; color: #666; line-height: 1.5;">${sitioText}</td>
+            </tr>
+            <tr>
+              <td style="padding: 12px 15px; font-weight: bold; color: #555; background-color: #f9f9f9; text-transform: uppercase; vertical-align: top;">DETALLE</td>
+              <td style="padding: 12px 15px; vertical-align: top;">${summariesHTML}</td>
+            </tr>
+          </tbody>
+        </table>
+        `;
       }
-      
-      detalleHTML += `
-              </ul>
-            </td>
-            <td style="padding: 15px; vertical-align: top; text-align: right; color: #777; font-size: 12px; font-style: italic;">
-              ${mensajeFecha.replace('Desde el día ', 'Desde:<br>').replace(' hasta el día ', '<br><br>Hasta:<br>').replace('El día ', '')}
-            </td>
-          </tr>
-      `;
     }
     
     detalleHTML += `
-        </tbody>
-      </table>
     </div>
     `;
     
