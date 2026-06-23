@@ -10,7 +10,7 @@ Para garantizar calidad *Enterprise*, el código original ha sido dividido en m�
 
 ### 1. `Config.js`
 Maneja las constantes estáticas, entornos y la configuración global del proyecto.
-* **Entornos (PROD/TEST):** Posee una bandera `ENVIRONMENT` para cambiar rápidamente a un webhook de pruebas y evitar notificaciones erróneas durante el desarrollo.
+* **Entornos (PROD/TEST):** Posee una bandera `ENTORNO` para cambiar rápidamente a un webhook de pruebas y evitar notificaciones erróneas durante el desarrollo.
 * **Seguridad:** Extrae los tokens secretos (`JIRA_AUTH_TOKEN`, `SLACK_WEBHOOK_PROD`) del `PropertiesService` seguro de Google.
 
 ### 2. `JiraService.js`
@@ -46,12 +46,17 @@ El conector saliente.
 El entrypoint para Google Apps Script.
 * Procesa todo en un entorno seguro y ofrece opciones para imprimir localmente en vez de ir a Slack (Modo Prueba Local).
 
+### 10. `WebApp.js`
+Punto de entrada HTTP (doGet) para la aplicación web integrada.
+* Actúa como servidor web devolviendo el HTML del borrador del correo generado para el cliente.
+* Lee los datos desde Google Drive o desde el `CacheService` de manera segura, utilizando validación por hash MD5.
+
 ---
 
 ## Despliegue y Configuración
 
 1. **Gestión de Entornos (Pruebas Locales sin molestar a Clientes):**
-   Abre `Config.js` y asegúrate de configurar `ENVIRONMENT: 'TESTING'` antes de empezar a programar.
+   Abre `Config.js` y asegúrate de configurar `ENTORNO: 'TESTING'` antes de empezar a programar.
 
 2. **Propiedades Seguras:**
    Tus variables `JIRA_AUTH_TOKEN`, `SLACK_WEBHOOK_PROD` y `SLACK_WEBHOOK_TESTING` viven encriptadas en *Configuración de Proyecto > Propiedades de Script* dentro del IDE web de Apps Script.

@@ -3,8 +3,8 @@
  */
 const SlackService = {
   
-  sendNotification: function(message) {
-    const webhookUrl = Config.getSlackWebhookUrl();
+  enviarNotificacion: function(message) {
+    const webhookUrl = Config.obtenerWebhookSlack();
     
     if (!webhookUrl || webhookUrl.trim() === "") {
       Logger.log("Webhook de Slack no configurado, saltando envío.");

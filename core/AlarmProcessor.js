@@ -3,58 +3,58 @@
  */
 const AlarmProcessor = {
   
-  procesarAlarmas: function(issues, mappings) {
+  procesarAlarmas: function(tickets, mappings) {
     const errores = [];
     const mensajesProcesados = {};
     const alarmasSilenciadas = [];
 
-    issues.forEach((issue, index) => {
+    tickets.forEach((ticket, index) => {
       const warnings = [];
       try {
-        if (!issue.key) throw new Error(`Clave faltante`);
-        if (!issue.created || isNaN(issue.created.getTime())) throw new Error(`Fecha inválida o faltante`);
+        if (!ticket.key) throw new Error(`Clave faltante`);
+        if (!ticket.created || isNaN(ticket.created.getTime())) throw new Error(`Fecha inválida o faltante`);
 
-        let cliente = this._obtenerClaveCliente(issue.key, mappings.mapaClientes);
+        let cliente = this._obtenerClaveCliente(ticket.key, mappings.mapaClientes);
         if (cliente.includes('No encontrado')) {
-          warnings.push(`Cliente no encontrado para la clave "${issue.key}"`);
+          warnings.push(`Cliente no encontrado para la clave "${ticket.key}"`);
           cliente = 'Cliente Desconocido';
         }
 
-        let pod = issue.pod;
+        let pod = ticket.pod;
         if (!pod || pod === 'POD Desconocido') {
-          warnings.push(`POD no encontrado para el ticket "${issue.key}" en el custom field de Jira`);
+          warnings.push(`POD no encontrado para el ticket "${ticket.key}" en el custom field de Jira`);
           pod = 'POD Desconocido';
         }
 
-        let { alarma: alarmaProcesada, summaryResto } = AlarmParser.extraerNombreYResumenAlarma(issue.summary, mappings.mapaAlarmas, warnings);
+        let { alarma: alarmaProcesada, summaryResto } = AlarmParser.extraerNombreYResumenAlarma(ticket.summary, mappings.mapaAlarmas, warnings);
         
-        let origen = AlarmParser.extraerOrigen(issue.description, issue.summary);
+        let origen = AlarmParser.extraerOrigen(ticket.description, ticket.summary);
         if (origen.target === 'Target no encontrado') {
-          warnings.push(`Target no encontrado en la descripción/summary "${issue.summary}"`);
+          warnings.push(`Target no encontrado en la descripción/summary "${ticket.summary}"`);
           origen.target = 'Target Desconocido';
         }
 
-        const formato = this._formatearAlarmaPorTipo(alarmaProcesada, summaryResto, origen.target, issue.description);
+        const formato = this._formatearAlarmaPorTipo(alarmaProcesada, summaryResto, origen.target, ticket.description);
         if (!formato.incluir) return; // Si debe excluirse (Ej. Falso positivo) no hace nada
         
         origen.target = formato.nuevoTarget;
-        origen.targetLabel = formato.targetLabel;
+        origen.etiquetaTarget = formato.etiquetaTarget;
         summaryResto = formato.nuevoSummary;
 
         // Filtrado por reglas de Excepciones dinámicas
-        const excepcion = this._verificarExcepcion(pod, cliente, origen.target, issue.summary, mappings.reglasExcepcion);
+        const excepcion = this._verificarExcepcion(pod, cliente, origen.target, ticket.summary, mappings.reglasExcepcion);
         if (excepcion.matcheada) {
           alarmasSilenciadas.push(excepcion.log);
           return; // La alarma cae dentro de una ventana de mantenimiento o excepción, se omite.
         }
 
-        this._agruparMensaje(pod, cliente, alarmaProcesada, JSON.stringify(origen), issue.created, mensajesProcesados, warnings, summaryResto);
+        this._agruparMensaje(pod, cliente, alarmaProcesada, JSON.stringify(origen), ticket.created, mensajesProcesados, warnings, summaryResto);
 
       } catch (err) {
         // index + 2 por retrocompatibilidad con logs antiguos basados en row (fila de excel)
         const filaLog = index + 2;
-        errores.push(`Ticket ${issue.key} (Equiv. Fila ${filaLog}): ${err.message}`);
-        Logger.log(`Error procesando ticket ${issue.key}: ${err.message}`);
+        errores.push(`Ticket ${ticket.key} (Equiv. Fila ${filaLog}): ${err.message}`);
+        Logger.log(`Error procesando ticket ${ticket.key}: ${err.message}`);
       }
     });
 
@@ -76,22 +76,22 @@ const AlarmProcessor = {
 
     let resultado;
     // Implementación de Patrón Strategy: Busca el formateador, si no existe devuelve por defecto.
-    if (AlarmFormatters.handlers[tipoAlarma]) {
-      resultado = AlarmFormatters.handlers[tipoAlarma](summaryResto, target, description);
+    if (AlarmFormatters.manejadores[tipoAlarma]) {
+      resultado = AlarmFormatters.manejadores[tipoAlarma](summaryResto, target, description);
     } else {
       resultado = { incluir: true, nuevoTarget: target, nuevoSummary: summaryResto };
     }
 
-    if (resultado.incluir && !resultado.targetLabel && resultado.nuevoTarget) {
+    if (resultado.incluir && !resultado.etiquetaTarget && resultado.nuevoTarget) {
       const lowerTarget = resultado.nuevoTarget.toLowerCase();
       if (lowerTarget.startsWith('esx') || lowerTarget.includes('host')) {
-        resultado.targetLabel = 'Host';
+        resultado.etiquetaTarget = 'Host';
       } else if (lowerTarget.startsWith('cl-') || lowerTarget.includes('cluster')) {
-        resultado.targetLabel = 'Cluster';
+        resultado.etiquetaTarget = 'Cluster';
       } else if (lowerTarget.startsWith('ds-') || lowerTarget.includes('datastore')) {
-        resultado.targetLabel = 'Datastore';
+        resultado.etiquetaTarget = 'Datastore';
       } else {
-        resultado.targetLabel = 'Recurso Afectado';
+        resultado.etiquetaTarget = 'Recurso Afectado';
       }
     }
 

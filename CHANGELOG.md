@@ -4,6 +4,14 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y el proyecto se adhiere a [Semantic Versioning](https://semver.org/).
 
+## [10.0.0] - 2026-06-23
+
+### Added
+- **Estandarización de Idioma (Clean Code):** Se refactorizó todo el código fuente para eliminar el "Spanglish", traduciendo variables, funciones y métodos internos al Español. El código ahora mantiene una convención uniforme (Ej: `sendNotification` a `enviarNotificacion`).
+- **Sistema Dual de Caché y Drive:** Se implementó `WebApp.js` para servir borradores de correo HTML a los operadores mediante enlaces inyectados en Slack.
+- **Deduplicación de Alta Velocidad (MD5):** El almacenamiento en Drive ahora utiliza un hash MD5 derivado del cuerpo del correo (`payloadBorrador`) para identificar y prevenir la regeneración de archivos idénticos durante un aluvión de alarmas repetidas.
+- **Prevención de Fallos Multi-Cuenta (OAuth):** La WebApp se configuró estricta en modalidad `USER_DEPLOYING` y enrutamiento interno (`/a/macros/wetcom.com/`), resolviendo los problemas de permisos al abrir los enlaces con cuentas de Google personales activas en el navegador.
+
 ## [7.8.0] - 2026-06-16
 
 ### Added

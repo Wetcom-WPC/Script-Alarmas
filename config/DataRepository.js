@@ -3,7 +3,7 @@
  */
 const DataRepository = {
   
-  getMappings: function() {
+  obtenerMapeos: function() {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     
     const sheetClientes = ss.getSheetByName(Config.SHEET_CLIENTES);

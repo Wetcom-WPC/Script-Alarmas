@@ -6,25 +6,25 @@
 const AlarmFormatters = {
   
   // Handlers específicos por nombre de alarma
-  handlers: {
+  manejadores: {
     'Desconexión de Host': function(summaryResto, target, description) {
       const match = summaryResto.match(/in\s+(.+?)\s+is not responding/i);
       let nuevoSummary = (match && match[1]) ? match[1].trim() : null;
       if (!nuevoSummary) Logger.log("Desconexión de Host: No se encontró el patrón esperado en summaryResto: " + summaryResto);
-      return { incluir: true, nuevoTarget: target, nuevoSummary, targetLabel: 'Host' };
+      return { incluir: true, nuevoTarget: target, nuevoSummary, etiquetaTarget: 'Host' };
     },
 
     'Datastore inaccesible': function(summaryResto, target, description) {
       if (/^VeeamBackup_.*/i.test(target)) return { incluir: false };
-      return { incluir: true, nuevoTarget: target, nuevoSummary: null, targetLabel: 'Datastore' };
+      return { incluir: true, nuevoTarget: target, nuevoSummary: null, etiquetaTarget: 'Datastore' };
     },
 
     'Pérdida de conexión a storage': function(summaryResto, target, description) {
-      return { incluir: true, nuevoTarget: target, nuevoSummary: AlarmFormatters._formatearStorageConnection(summaryResto), targetLabel: 'Host' };
+      return { incluir: true, nuevoTarget: target, nuevoSummary: AlarmFormatters._formatearStorageConnection(summaryResto), etiquetaTarget: 'Host' };
     },
 
     'Perdida de redundancia de storage': function(summaryResto, target, description) {
-      return { incluir: true, nuevoTarget: target, nuevoSummary: AlarmFormatters._formatearStorageRedundancy(summaryResto), targetLabel: 'Host' };
+      return { incluir: true, nuevoTarget: target, nuevoSummary: AlarmFormatters._formatearStorageRedundancy(summaryResto), etiquetaTarget: 'Host' };
     },
 
     'Perdida de conexión de red': function(summaryResto, target, description) {
@@ -44,24 +44,24 @@ const AlarmFormatters = {
       } else {
         nuevoSummary = sinPrefijo.trim() !== "" ? sinPrefijo.trim() : summaryResto;
       }
-      return { incluir: true, nuevoTarget: target, nuevoSummary, targetLabel: 'Host' };
+      return { incluir: true, nuevoTarget: target, nuevoSummary, etiquetaTarget: 'Host' };
     },
 
     'Alarma de Nutanix': function(summaryResto, target, description) {
       if (/has\s+\d+\s+unresolved alerts/i.test(summaryResto)) return { incluir: false };
       const nutanixMatch = summaryResto.match(/:\s*([^:]+):\s*(.*)/);
       if (nutanixMatch) {
-        return { incluir: true, nuevoTarget: nutanixMatch[1].trim(), nuevoSummary: nutanixMatch[2].trim(), targetLabel: 'Cluster' };
+        return { incluir: true, nuevoTarget: nutanixMatch[1].trim(), nuevoSummary: nutanixMatch[2].trim(), etiquetaTarget: 'Cluster' };
       }
-      return { incluir: true, nuevoTarget: 'Target Desconocido', nuevoSummary: summaryResto, targetLabel: 'Cluster' };
+      return { incluir: true, nuevoTarget: 'Target Desconocido', nuevoSummary: summaryResto, etiquetaTarget: 'Cluster' };
     },
 
     'vSAN Health Test': function(summaryResto, target, description) {
-      return { incluir: true, nuevoTarget: target, nuevoSummary: summaryResto, targetLabel: 'Cluster' };
+      return { incluir: true, nuevoTarget: target, nuevoSummary: summaryResto, etiquetaTarget: 'Cluster' };
     },
 
     'Insufficient resources to satisfy vSphere HA failover level': function(summaryResto, target, description) {
-      return { incluir: true, nuevoTarget: target, nuevoSummary: summaryResto, targetLabel: 'Cluster' };
+      return { incluir: true, nuevoTarget: target, nuevoSummary: summaryResto, etiquetaTarget: 'Cluster' };
     }
   },
 
@@ -75,7 +75,7 @@ const AlarmFormatters = {
       let resultado = newlineIndex !== -1 ? substringDesde.substring(0, newlineIndex).trim() : substringDesde.trim();
       nuevoSummary = resultado.replace(/[.]+$/, '');
     }
-    return { incluir: true, nuevoTarget: target, nuevoSummary, targetLabel: 'Host' };
+    return { incluir: true, nuevoTarget: target, nuevoSummary, etiquetaTarget: 'Host' };
   },
 
   _formatearStorageRedundancy: function(summaryResto) {

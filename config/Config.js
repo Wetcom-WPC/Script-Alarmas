@@ -3,7 +3,7 @@
  */
 const Config = {
   // Entorno actual ('TESTING' para desarrollo/pruebas y 'PROD' para producción)
-  ENVIRONMENT: 'TESTING',
+  ENTORNO: 'TESTING',
 
   // Configuración de Jira
   JIRA_BASE_URL: "wetcom.atlassian.net",
@@ -20,11 +20,11 @@ const Config = {
   ALARMAS_IGNORADAS_POR_DEFECTO: ['Alarma de vROps', 'Alarma de vRO'],
 
   // ID de la carpeta en Google Drive donde se guardarán los borradores (.json)
-  DRAFTS_FOLDER_ID: "15jcl2qwSy0obc_ETqylaxKAW3Lw4sG_V",
+  ID_CARPETA_BORRADORES: "15jcl2qwSy0obc_ETqylaxKAW3Lw4sG_V",
 
   // Configuración de WebApp para Generador de Borradores
   // IMPORTANTE: Deberás reemplazar este valor tras hacer la publicación web.
-  WEB_APP_URL: "https://script.google.com/a/macros/wetcom.com/s/AKfycbw-ZHuJoFYN4hhOB-GJPwegSIjsbh5VURmTyFTc5_zOKG1WUIQE-IdxIyuMXRZNYYY/exec",
+  URL_WEB_APP: "https://script.google.com/a/macros/wetcom.com/s/AKfycbw-ZHuJoFYN4hhOB-GJPwegSIjsbh5VURmTyFTc5_zOKG1WUIQE-IdxIyuMXRZNYYY/exec",
 
   /**
    * Obtiene una propiedad de script de forma segura.
@@ -39,8 +39,8 @@ const Config = {
     return valor;
   },
 
-  getSlackWebhookUrl: function() {
-    if (this.ENVIRONMENT === 'TESTING') {
+  obtenerWebhookSlack: function() {
+    if (this.ENTORNO === 'TESTING') {
       return this.getPropiedad("SLACK_WEBHOOK_TESTING");
     }
     return this.getPropiedad("SLACK_WEBHOOK_PROD");
@@ -50,7 +50,7 @@ const Config = {
     return this.getPropiedad('SLACK_WEBHOOK_LOGS');
   },
 
-  getJiraAuthToken: function() {
+  obtenerTokenJira: function() {
     return this.getPropiedad("JIRA_AUTH_TOKEN");
   }
 };

@@ -8,9 +8,9 @@ const Tools = {
    * Herramienta temporal para buscar el ID de los Custom Fields en Jira.
    * Descarga un ticket y vuelca todos sus campos ocultos en la planilla "Debug Jira".
    */
-  debugCamposJira_Runner: function() {
+  runnerDebugCamposJira: function() {
     try {
-      const campos = Tools._debugCamposJiraArray();
+      const campos = Tools._obtenerArrayCamposJira();
       const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
       let sheet = spreadsheet.getSheetByName("Debug Jira");
       if (!sheet) {
@@ -32,7 +32,7 @@ const Tools = {
     }
   },
 
-  _debugCamposJiraArray: function() {
+  _obtenerArrayCamposJira: function() {
     const url = `https://${Config.JIRA_BASE_URL}/rest/api/3/search/jql`;
     const headers = {
       "Accept": "application/json",
@@ -136,13 +136,13 @@ const Tools = {
    * Elimina borradores (.json) en Drive que tengan más de 7 días de antigüedad.
    */
   limpiarBorradoresViejos: function() {
-    if (!Config.DRAFTS_FOLDER_ID || Config.DRAFTS_FOLDER_ID.trim() === "") {
+    if (!Config.ID_CARPETA_BORRADORES || Config.ID_CARPETA_BORRADORES.trim() === "") {
       Logger.log("No hay carpeta de borradores configurada en Config.js.");
       return;
     }
     
     try {
-      const folder = DriveApp.getFolderById(Config.DRAFTS_FOLDER_ID);
+      const folder = DriveApp.getFolderById(Config.ID_CARPETA_BORRADORES);
       const limitDate = new Date();
       limitDate.setDate(limitDate.getDate() - 7); // Archivos más antiguos a 7 días
       

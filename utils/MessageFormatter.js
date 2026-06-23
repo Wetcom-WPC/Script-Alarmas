@@ -26,44 +26,44 @@ const MessageFormatter = {
         if (Config.WEB_APP_URL && Config.WEB_APP_URL.startsWith("http")) {
           try {
             const htmlBorrador = this._generarDetalleAlarmasHTML(alarmasCliente);
-            const draftPayload = {
+            const payloadBorrador = {
               cliente: cliente,
               pod: pod,
               alarmaPricipal: Object.keys(alarmasCliente)[0] || "Incidentes Varios",
               html: htmlBorrador
             };
             
-            const payloadStr = JSON.stringify(draftPayload);
-            const draftHash = this._generateMD5(payloadStr);
-            let draftId = null;
+            const cadenaPayload = JSON.stringify(payloadBorrador);
+            const hashBorrador = this._generarMD5(cadenaPayload);
+            let borradorId = null;
             
             // Verificamos si ya existe en caché para deduplicar rápidamente
             const cache = CacheService.getScriptCache();
-            const cachedId = cache.get(`hash_${draftHash}`);
+            const idEnCache = cache.get(`hash_${hashBorrador}`);
             
-            if (cachedId) {
-              draftId = cachedId;
-            } else if (Config.DRAFTS_FOLDER_ID && Config.DRAFTS_FOLDER_ID.trim() !== "") {
-              const folder = DriveApp.getFolderById(Config.DRAFTS_FOLDER_ID);
+            if (idEnCache) {
+              borradorId = idEnCache;
+            } else if (Config.ID_CARPETA_BORRADORES && Config.ID_CARPETA_BORRADORES.trim() !== "") {
+              const carpetaDrive = DriveApp.getFolderById(Config.ID_CARPETA_BORRADORES);
               
               // Failsafe 2: Buscar en Drive si ya existe un archivo con ese Hash (búsqueda exacta)
-              const existingFiles = folder.searchFiles(`title = '${draftHash}.json' and trashed = false`);
-              if (existingFiles.hasNext()) {
-                draftId = existingFiles.next().getId();
+              const archivosExistentes = carpetaDrive.searchFiles(`title = '${hashBorrador}.json' and trashed = false`);
+              if (archivosExistentes.hasNext()) {
+                borradorId = archivosExistentes.next().getId();
               } else {
-                const fileName = `${draftHash}.json`;
-                const file = folder.createFile(fileName, payloadStr, MimeType.PLAIN_TEXT);
-                draftId = file.getId();
+                const nombreArchivo = `${hashBorrador}.json`;
+                const file = carpetaDrive.createFile(nombreArchivo, cadenaPayload, MimeType.PLAIN_TEXT);
+                borradorId = file.getId();
               }
-              cache.put(`hash_${draftHash}`, draftId, 21600); // 6 horas
+              cache.put(`hash_${hashBorrador}`, borradorId, 21600); // 6 horas
             } else {
               // Fallback a Caché temporal si la carpeta no fue configurada aún
-              draftId = Utilities.getUuid();
-              cache.put(`draft_${draftId}`, payloadStr, 21600); 
-              cache.put(`hash_${draftHash}`, draftId, 21600); 
+              borradorId = Utilities.getUuid();
+              cache.put(`draft_${borradorId}`, cadenaPayload, 21600); 
+              cache.put(`hash_${hashBorrador}`, borradorId, 21600); 
             }
             
-            mensaje += `\n📩 <${Config.WEB_APP_URL}?id=${draftId}|Generar correo para este cliente>\n\n\n`;
+            mensaje += `\n📩 <${Config.URL_WEB_APP}?id=${borradorId}|Generar correo para este cliente>\n\n\n`;
           } catch(e) {
             Logger.log("Error al generar borrador (Cache/Drive): " + e.message);
             mensaje += `\n\n`;
@@ -90,8 +90,8 @@ const MessageFormatter = {
   _generarDetalleAlarmas: function(alarmas) {
     let detalle = "";
     for (const alarma in alarmas) {
-      const targetsEntries = alarmas[alarma];
-      const todasLasEntradas = Object.values(targetsEntries).flat();
+      const entradasTarget = alarmas[alarma];
+      const todasLasEntradas = Object.values(entradasTarget).flat();
       const mensajeFecha = this._crearMensajeFecha(todasLasEntradas);
 
       detalle += `• *${alarma}* _(${mensajeFecha})_\n`;
@@ -99,7 +99,7 @@ const MessageFormatter = {
       // Agrupar por vCenter + Cluster + Summaries idénticos
       let groupByCombination = {};
 
-      for (const targetStr in targetsEntries) {
+      for (const targetStr in entradasTarget) {
         let origen;
         try {
            origen = JSON.parse(targetStr);
@@ -108,7 +108,7 @@ const MessageFormatter = {
         }
         
         let summariesSet = new Set();
-        targetsEntries[targetStr].forEach(entry => {
+        entradasTarget[targetStr].forEach(entry => {
           if (entry.summaryResto !== null && entry.summaryResto !== 'N/A' && typeof entry.summaryResto === 'string') {
             const sumVal = entry.summaryResto.toString().trim();
             if (sumVal !== "") summariesSet.add(sumVal);
@@ -116,24 +116,24 @@ const MessageFormatter = {
         });
 
         const sortedSummaries = Array.from(summariesSet).sort();
-        const groupKey = JSON.stringify({
+        const claveGrupo = JSON.stringify({
           vCenter: origen.vCenter,
           cluster: origen.cluster,
-          targetLabel: origen.targetLabel || 'Host/Target',
+          etiquetaTarget: origen.etiquetaTarget || 'Host/Target',
           summaries: sortedSummaries
         });
 
-        if (!groupByCombination[groupKey]) {
-          groupByCombination[groupKey] = {
+        if (!groupByCombination[claveGrupo]) {
+          groupByCombination[claveGrupo] = {
             vCenter: origen.vCenter,
             cluster: origen.cluster,
-            targetLabel: origen.targetLabel || 'Host/Target',
+            etiquetaTarget: origen.etiquetaTarget || 'Host/Target',
             summaries: sortedSummaries,
             targets: []
           };
         }
 
-        groupByCombination[groupKey].targets.push(origen.target);
+        groupByCombination[claveGrupo].targets.push(origen.target);
       }
 
       for (const key in groupByCombination) {
@@ -143,23 +143,23 @@ const MessageFormatter = {
           detalle += `    • *vCenter:* ${group.vCenter}\n`;
         }
         
-        if (group.cluster && !group.cluster.toLowerCase().includes('desconocido') && group.targetLabel !== 'Cluster') {
+        if (group.cluster && !group.cluster.toLowerCase().includes('desconocido') && group.etiquetaTarget !== 'Cluster') {
           detalle += `        • *Cluster:* ${group.cluster}\n`;
         }
         
         group.targets.forEach(targetName => {
           if (targetName && !targetName.toLowerCase().includes('desconocido') && !targetName.toLowerCase().includes('no encontrado')) {
             // Si hay un cluster que no es el target, indentamos el target un nivel más
-            if (group.cluster && !group.cluster.toLowerCase().includes('desconocido') && group.targetLabel !== 'Cluster') {
-              detalle += `            • *${group.targetLabel}:* ${targetName}\n`;
+            if (group.cluster && !group.cluster.toLowerCase().includes('desconocido') && group.etiquetaTarget !== 'Cluster') {
+              detalle += `            • *${group.etiquetaTarget}:* ${targetName}\n`;
             } else {
-              detalle += `        • *${group.targetLabel}:* ${targetName}\n`;
+              detalle += `        • *${group.etiquetaTarget}:* ${targetName}\n`;
             }
           }
         });
         
         if (group.summaries.length > 0) {
-          const indentSummaries = (group.cluster && !group.cluster.toLowerCase().includes('desconocido') && group.targetLabel !== 'Cluster') ? '                ' : '            ';
+          const indentSummaries = (group.cluster && !group.cluster.toLowerCase().includes('desconocido') && group.etiquetaTarget !== 'Cluster') ? '                ' : '            ';
           group.summaries.forEach(summary => {
             if (summary.indexOf('\n') !== -1) {
               const lines = summary.split('\n');
@@ -216,11 +216,11 @@ const MessageFormatter = {
     `;
     
     for (const alarma in alarmas) {
-      const targetsEntries = alarmas[alarma];
+      const entradasTarget = alarmas[alarma];
 
       let groupByCombination = {};
 
-      for (const targetStr in targetsEntries) {
+      for (const targetStr in entradasTarget) {
         let origen;
         try {
            origen = JSON.parse(targetStr);
@@ -229,7 +229,7 @@ const MessageFormatter = {
         }
         
         let summariesSet = new Set();
-        targetsEntries[targetStr].forEach(entry => {
+        entradasTarget[targetStr].forEach(entry => {
           if (entry.summaryResto !== null && entry.summaryResto !== 'N/A' && typeof entry.summaryResto === 'string') {
             const sumVal = entry.summaryResto.toString().trim();
             if (sumVal !== "") summariesSet.add(sumVal);
@@ -237,26 +237,26 @@ const MessageFormatter = {
         });
 
         const sortedSummaries = Array.from(summariesSet).sort();
-        const groupKey = JSON.stringify({
+        const claveGrupo = JSON.stringify({
           vCenter: origen.vCenter,
           cluster: origen.cluster,
-          targetLabel: origen.targetLabel || 'Host/Target',
+          etiquetaTarget: origen.etiquetaTarget || 'Host/Target',
           summaries: sortedSummaries
         });
 
-        if (!groupByCombination[groupKey]) {
-          groupByCombination[groupKey] = {
+        if (!groupByCombination[claveGrupo]) {
+          groupByCombination[claveGrupo] = {
             vCenter: origen.vCenter,
             cluster: origen.cluster,
-            targetLabel: origen.targetLabel || 'Host/Target',
+            etiquetaTarget: origen.etiquetaTarget || 'Host/Target',
             summaries: sortedSummaries,
             targets: [],
             entries: []
           };
         }
 
-        groupByCombination[groupKey].targets.push(origen.target);
-        groupByCombination[groupKey].entries.push(...targetsEntries[targetStr]);
+        groupByCombination[claveGrupo].targets.push(origen.target);
+        groupByCombination[claveGrupo].entries.push(...entradasTarget[targetStr]);
       }
 
       for (const key in groupByCombination) {
@@ -276,7 +276,7 @@ const MessageFormatter = {
         }
 
         let clusterHtml = '';
-        if (group.cluster && !group.cluster.toLowerCase().includes('desconocido') && group.targetLabel !== 'Cluster') {
+        if (group.cluster && !group.cluster.toLowerCase().includes('desconocido') && group.etiquetaTarget !== 'Cluster') {
           clusterHtml += `
             <tr style="border-bottom: 1px solid #e0e0e0;">
               <td style="padding: 12px 15px; font-weight: bold; color: #555; background-color: #f9f9f9; text-transform: uppercase;">CLUSTER</td>
@@ -314,7 +314,7 @@ const MessageFormatter = {
               <td style="padding: 12px 15px; color: #666;">${mensajeFecha.replace('El día ', '').replace('Desde el día ', 'Desde el ')}</td>
             </tr>
             <tr style="border-bottom: 1px solid #e0e0e0;">
-              <td style="padding: 12px 15px; font-weight: bold; color: #555; background-color: #f9f9f9; text-transform: uppercase;">${group.targetLabel.toUpperCase()}</td>
+              <td style="padding: 12px 15px; font-weight: bold; color: #555; background-color: #f9f9f9; text-transform: uppercase;">${group.etiquetaTarget.toUpperCase()}</td>
               <td style="padding: 12px 15px; color: #444; font-family: 'Courier New', Courier, monospace; font-size: 14px;">${targetsText}</td>
             </tr>
             ${vcenterHtml}
@@ -338,7 +338,7 @@ const MessageFormatter = {
   /**
    * Genera un Hash MD5 en formato Hexadecimal para deduplicación
    */
-  _generateMD5: function(str) {
+  _generarMD5: function(str) {
     const digest = Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, str, Utilities.Charset.UTF_8);
     let hexString = '';
     for (let i = 0; i < digest.length; i++) {

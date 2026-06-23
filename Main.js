@@ -22,7 +22,7 @@ function _obtenerMensajeFinal() {
   }
   
   // 2. Obtiene diccionarios de mapeo desde las hojas de Google Sheets
-  const mappings = DataRepository.getMappings();
+  const mappings = DataRepository.obtenerMapeos();
   
   // 3. Procesa las alarmas cruzando la información con los mappings
   const { mensajesProcesados, errores, alarmasSilenciadas } = AlarmProcessor.procesarAlarmas(issues, mappings);
@@ -58,7 +58,7 @@ function disparadorPrincipal_conAPI() {
     }
     
     // 5. Envía el resultado a Slack
-    SlackService.sendNotification(resultado.mensaje);
+    SlackService.enviarNotificacion(resultado.mensaje);
     Logger.log("Ejecución finalizada con éxito. Mensaje generado:\n" + resultado.mensaje);
 
   } catch (e) {
