@@ -40,6 +40,11 @@ const AlarmProcessor = {
         origen.targetLabel = formato.targetLabel;
         summaryResto = formato.nuevoSummary;
 
+        // Filtrado por reglas de Excepciones dinámicas
+        if (this._verificarExcepcion(pod, cliente, origen.target, issue.summary, mappings.reglasExcepcion)) {
+          return; // La alarma cae dentro de una ventana de mantenimiento o excepción, se omite.
+        }
+
         this._agruparMensaje(pod, cliente, alarmaProcesada, JSON.stringify(origen), issue.created, mensajesProcesados, warnings, summaryResto);
 
       } catch (err) {
@@ -101,5 +106,31 @@ const AlarmProcessor = {
       warnings: warnings.length > 0 ? warnings.join(', ') : null,
       summaryResto
     });
+  },
+
+  _verificarExcepcion: function(pod, cliente, target, summary, reglas) {
+    if (!reglas || reglas.length === 0) return false;
+    
+    const podStr = pod.toString().toUpperCase().replace(/\s+/g, '');
+    const clienteStr = cliente.toString().toUpperCase().trim();
+    const textoAAnalizar = `${target} ${summary}`.toLowerCase();
+
+    for (let i = 0; i < reglas.length; i++) {
+      const regla = reglas[i];
+      const aplicaPod = (regla.pod === "GENERAL" || podStr.includes(regla.pod) || regla.pod.includes(podStr));
+      const aplicaCliente = (regla.cliente === "GENERAL" || clienteStr === regla.cliente);
+      
+      if (aplicaPod && aplicaCliente) {
+        if (textoAAnalizar.includes(regla.palabraClave)) {
+          try {
+            SlackService.enviarLogExcepcion(`Alarma omitida para *${cliente}* en POD ${pod}.\n*Target / Summary:* ${target} | ${summary}\n*Palabra Clave Matcheada:* \`${regla.palabraClave}\``);
+          } catch(e) {
+            Logger.log("Error enviando log de excepción: " + e.message);
+          }
+          return true;
+        }
+      }
+    }
+    return false;
   }
 };

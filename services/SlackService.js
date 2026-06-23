@@ -30,5 +30,23 @@ const SlackService = {
       Logger.log(errorMsg);
       throw new Error(errorMsg);
     }
+  },
+
+  enviarLogExcepcion: function(mensaje) {
+    const webhookURL = Config.SLACK_WEBHOOK_LOGS;
+    if (!webhookURL) {
+      Logger.log("Log de excepción omitido (Falta SLACK_WEBHOOK_LOGS): " + mensaje);
+      return;
+    }
+    const payload = JSON.stringify({
+      text: `🔇 *Alarma Silenciada*\n_${mensaje}_`
+    });
+    const options = { 
+      method: "post", 
+      contentType: "application/json", 
+      payload: payload, 
+      muteHttpExceptions: true 
+    };
+    UrlFetchApp.fetch(webhookURL, options);
   }
 };

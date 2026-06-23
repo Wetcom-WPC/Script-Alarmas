@@ -14,6 +14,7 @@ const Config = {
   SHEET_CLIENTES: 'Clientes',
   SHEET_TIPOS_ALARMAS: 'Tipos de Alarmas',
   SHEET_CORREOS_CLIENTES: 'Correos Clientes',
+  SHEET_EXCEPCIONES: 'Excepciones',
 
   // Configuración de WebApp para Generador de Borradores
   // IMPORTANTE: Deberás reemplazar este valor tras hacer la publicación web.
@@ -37,6 +38,10 @@ const Config = {
       return this.getPropiedad("SLACK_WEBHOOK_TESTING");
     }
     return this.getPropiedad("SLACK_WEBHOOK_PROD");
+  },
+
+  get SLACK_WEBHOOK_LOGS() {
+    return this.getPropiedad('SLACK_WEBHOOK_LOGS');
   },
 
   getJiraAuthToken: function() {
