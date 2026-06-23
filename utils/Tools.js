@@ -171,10 +171,3 @@ const Tools = {
 function runnerCrearHojaExcepciones() {
   Tools.crearHojaExcepciones();
 }
-
-/**
- * Función global para invocar la limpieza programada de borradores desde los Triggers de Apps Script.
- */
-function runnerLimpiarBorradoresViejos() {
-  Tools.limpiarBorradoresViejos();
-}

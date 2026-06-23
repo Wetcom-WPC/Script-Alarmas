@@ -91,3 +91,10 @@ function disparadorPrincipal_Local() {
     SpreadsheetApp.getUi().alert("Error crítico en el script", e.message, SpreadsheetApp.getUi().ButtonSet.OK);
   }
 }
+
+/**
+ * Función global (Entrypoint) para invocar la limpieza programada de borradores desde los Triggers de Apps Script.
+ */
+function runnerLimpiarBorradoresViejos() {
+  Tools.limpiarBorradoresViejos();
+}
