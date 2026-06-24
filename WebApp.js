@@ -28,7 +28,7 @@ function doGet(e) {
     const payloadBorrador = JSON.parse(dataGuardada);
     
     // Obtener destinatarios desde DataRepository
-    const repositorios = DataRepository.getMappings();
+    const repositorios = DataRepository.obtenerMapeos();
     const mapaCorreos = repositorios.mapaCorreos || {};
     const dest = mapaCorreos[payloadBorrador.cliente] || ""; 
     
@@ -36,7 +36,7 @@ function doGet(e) {
     const fechaAsunto = Utilities.formatDate(new Date(), tz, "dd/MM/yyyy");
     
     // El asunto contendrá la alarma principal y el nombre del cliente
-    const subject = `${payloadBorrador.alarmaPricipal} - WETCOM - ${payloadBorrador.cliente} - ${fechaAsunto}`;
+    const asuntoCorreo = `${payloadBorrador.alarmaPricipal} - WETCOM - ${payloadBorrador.cliente} - ${fechaAsunto}`;
     
     // Armar el cuerpo corporativo
     // Nota: Dejamos el espacio final libre para que el operador pueda insertar su firma corporativa de Gmail.
@@ -59,7 +59,7 @@ function doGet(e) {
       }
     }
 
-    GmailApp.createDraft(dest, subject, "Por favor, active HTML para ver el formato.", {
+    GmailApp.createDraft(dest, asuntoCorreo, "Por favor, active HTML para ver el formato.", {
       htmlBody: cuerpoFinal,
       name: "Soporte Wetcom",
       cc: correosCC
