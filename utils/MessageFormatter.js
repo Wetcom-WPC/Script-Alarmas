@@ -17,6 +17,8 @@ const MessageFormatter = {
         mensaje += `@pod${pod} Buenas POD! Les comento que recibimos las siguientes alarmas:\n\n`;
       }
 
+      let enlacesBorradores = [];
+
       for (const cliente in mensajesProcesados[pod]) {
         mensaje += `*${cliente}*\n\n`;
         const alarmasCliente = mensajesProcesados[pod][cliente];
@@ -63,19 +65,24 @@ const MessageFormatter = {
               cache.put(`hash_${hashBorrador}`, borradorId, 21600); 
             }
             
-            mensaje += `\n📩 <${Config.URL_WEB_APP}?id=${borradorId}|Generar correo para este cliente>\n\n\n`;
+            enlacesBorradores.push(`📩 <${Config.URL_WEB_APP}?id=${borradorId}|Generar correo para ${cliente}>`);
           } catch(e) {
             Logger.log("Error al generar borrador (Cache/Drive): " + e.message);
-            mensaje += `\n\n`;
           }
         }
       }
 
       if (pod === "WPC") {
         mensaje += `Ante esto les consulto, ¿están al tanto de las anomalías? ¿Desean que generemos un ticket para analizar la anomalía en profundidad?\n`;
-        mensaje += `Aguardamos sus comentarios.\nSaludos cordiales.\n\n\n\n`;
+        mensaje += `Aguardamos sus comentarios.\nSaludos cordiales.\n\n`;
       } else {
-        mensaje += `Ante esto, les consulto, ¿están al tanto de la/s anomalía/s? ¿desean que le informemos al cliente?\n\n\n\n`;
+        mensaje += `Ante esto, les consulto, ¿están al tanto de la/s anomalía/s? ¿desean que le informemos al cliente?\n\n`;
+      }
+
+      if (enlacesBorradores.length > 0) {
+        mensaje += enlacesBorradores.join('\n') + '\n\n\n\n';
+      } else {
+        mensaje += `\n\n`;
       }
     }
 
