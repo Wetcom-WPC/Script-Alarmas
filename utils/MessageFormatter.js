@@ -23,7 +23,7 @@ const MessageFormatter = {
         mensaje += this._generarDetalleAlarmas(alarmasCliente);
         
         // --- INYECCIÓN DEL ENLACE DE BORRADOR ---
-        if (Config.WEB_APP_URL && Config.WEB_APP_URL.startsWith("http")) {
+        if (Config.URL_WEB_APP && Config.URL_WEB_APP.startsWith("http")) {
           try {
             const htmlBorrador = this._generarDetalleAlarmasHTML(alarmasCliente);
             const payloadBorrador = {
