@@ -3,7 +3,7 @@
  */
 const Config = {
   // Entorno actual ('TESTING' para desarrollo/pruebas y 'PROD' para producción)
-  ENTORNO: 'TESTING',
+  ENTORNO: 'PROD',
 
   // Configuración de Jira
   JIRA_BASE_URL: "wetcom.atlassian.net",
@@ -20,7 +20,12 @@ const Config = {
   ALARMAS_IGNORADAS_POR_DEFECTO: ['Alarma de vROps', 'Alarma de vRO'],
 
   // ID de la carpeta en Google Drive donde se guardarán los borradores (.json)
-  ID_CARPETA_BORRADORES: "15jcl2qwSy0obc_ETqylaxKAW3Lw4sG_V",
+  get ID_CARPETA_BORRADORES() {
+    if (this.ENTORNO === 'TESTING') {
+      return this.getPropiedad("CARPETA_BORRADORES_TESTING");
+    }
+    return this.getPropiedad("CARPETA_BORRADORES_PROD");
+  },
 
   // Configuración de WebApp para Generador de Borradores
   // IMPORTANTE: Deberás reemplazar este valor tras hacer la publicación web.
