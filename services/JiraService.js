@@ -11,7 +11,7 @@ const JiraService = {
 
     const headers = {
       "Accept": "application/json",
-      "Authorization": `Basic ${Config.getJiraAuthToken()}`,
+      "Authorization": `Basic ${Config.obtenerTokenJira()}`,
       "Content-Type": "application/json"
     };
 

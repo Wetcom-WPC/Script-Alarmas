@@ -36,7 +36,7 @@ const Tools = {
     const url = `https://${Config.JIRA_BASE_URL}/rest/api/3/search/jql`;
     const headers = {
       "Accept": "application/json",
-      "Authorization": `Basic ${Config.getJiraAuthToken()}`,
+      "Authorization": `Basic ${Config.obtenerTokenJira()}`,
       "Content-Type": "application/json"
     };
 
