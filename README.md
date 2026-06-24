@@ -10,8 +10,8 @@ Para garantizar calidad *Enterprise*, el código original ha sido dividido en m�
 
 ### 1. `Config.js`
 Maneja las constantes estáticas, entornos y la configuración global del proyecto.
-* **Entornos (PROD/TEST):** Posee una bandera `ENTORNO` para cambiar rápidamente a un webhook de pruebas y evitar notificaciones erróneas durante el desarrollo.
-* **Seguridad:** Extrae los tokens secretos (`JIRA_AUTH_TOKEN`, `SLACK_WEBHOOK_PROD`) del `PropertiesService` seguro de Google.
+* **Entornos (PROD/TEST):** Posee una bandera `ENTORNO` para cambiar rápidamente a un webhook y una carpeta de Google Drive de pruebas, evitando notificaciones erróneas y generación de json "basura" durante el desarrollo.
+* **Seguridad:** Extrae los tokens secretos y claves de entorno (`JIRA_AUTH_TOKEN`, `SLACK_WEBHOOK_PROD`, `CARPETA_BORRADORES_PROD`, etc) del `PropertiesService` seguro de Google.
 
 ### 2. `JiraService.js`
 Se encarga de la conexión con Atlassian Jira.
@@ -58,8 +58,8 @@ Punto de entrada HTTP (doGet) para la aplicación web integrada.
 1. **Gestión de Entornos (Pruebas Locales sin molestar a Clientes):**
    Abre `Config.js` y asegúrate de configurar `ENTORNO: 'TESTING'` antes de empezar a programar.
 
-2. **Propiedades Seguras:**
-   Tus variables `JIRA_AUTH_TOKEN`, `SLACK_WEBHOOK_PROD` y `SLACK_WEBHOOK_TESTING` viven encriptadas en *Configuración de Proyecto > Propiedades de Script* dentro del IDE web de Apps Script.
+2. **Propiedades Seguras (Secrets):**
+   Las variables operativas (`JIRA_AUTH_TOKEN`, `SLACK_WEBHOOK_PROD`, `SLACK_WEBHOOK_TESTING`, `CARPETA_BORRADORES_PROD`, `CARPETA_BORRADORES_TESTING`) viven encriptadas/protegidas en *Configuración de Proyecto > Propiedades de Script* dentro del IDE web de Apps Script.
 
 3. **Uso local con Clasp:** 
    ```bash

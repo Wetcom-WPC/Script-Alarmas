@@ -4,6 +4,15 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y el proyecto se adhiere a [Semantic Versioning](https://semver.org/).
 
+## [10.1.0] - 2026-06-24
+
+### Added
+- **UI Dinámica de Slack:** Los enlaces de generación de correos fueron agrupados al final del mensaje del POD, debajo de la pregunta consultiva. El texto del botón ahora incluye el nombre del cliente explícito (Ej: `Generar correo para Banco Macro`) para mejorar la experiencia de usuario y evitar clics erróneos.
+- **Variables de Entorno en Drive:** Se extrajo el ID hardcodeado de la carpeta de Google Drive en `Config.js`. Ahora utiliza un getter dinámico que lee `CARPETA_BORRADORES_PROD` o `CARPETA_BORRADORES_TESTING` desde el *PropertiesService*, garantizando aislamiento total entre desarrollos y el entorno productivo.
+
+### Fixed
+- **Bugs Post-Refactor (Clean Code):** Se corrigieron un par de llamadas huérfanas en `WebApp.js` que referenciaban a la antigua función en inglés `DataRepository.getMappings()`.
+
 ## [10.0.0] - 2026-06-23
 
 ### Added
