@@ -14,7 +14,7 @@ const Config = {
   SHEET_CLIENTES: 'Clientes',
   SHEET_TIPOS_ALARMAS: 'Tipos de Alarmas',
   SHEET_CORREOS_CLIENTES: 'Correos Clientes',
-  SHEET_CORREOS_PODS: 'Suscripciones POD',
+  SHEET_CORREOS_PODS: 'Correos Guardias',
   SHEET_EXCEPCIONES: 'Excepciones',
 
   // Correo por defecto si un POD no tiene configuración asignada
