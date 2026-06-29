@@ -5,36 +5,6 @@
 const Tools = {
   
   /**
-   * Crea automáticamente la pestaña de Excepciones si no existe, 
-   * configurando las columnas, colores y filas inmovilizadas.
-   */
-  crearHojaExcepciones: function() {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    let sheet = ss.getSheetByName('Excepciones');
-    
-    if (!sheet) {
-      sheet = ss.insertSheet('Excepciones');
-      // Configurar Cabeceras
-      const headers = ["POD", "Cliente", "Palabra Clave a Silenciar", "Caducidad (DD/MM/YYYY HH:MM o PERMANENTE)"];
-      sheet.getRange("A1:D1").setValues([headers]);
-      
-      // Estilos
-      sheet.getRange("A1:D1").setFontWeight("bold").setBackground("#f0ad4e").setFontColor("white");
-      sheet.setFrozenRows(1);
-      
-      // Ajustar anchos
-      sheet.setColumnWidth(1, 100);
-      sheet.setColumnWidth(2, 200);
-      sheet.setColumnWidth(3, 300);
-      sheet.setColumnWidth(4, 300);
-      
-      Logger.log("Pestaña 'Excepciones' creada con éxito.");
-    } else {
-      Logger.log("La pestaña 'Excepciones' ya existe.");
-    }
-  },
-
-  /**
    * Elimina borradores (.json) en Drive que tengan más de 7 días de antigüedad.
    */
   limpiarBorradoresViejos: function() {
@@ -65,11 +35,3 @@ const Tools = {
     }
   }
 };
-
-/**
- * Función global requerida por la interfaz de Google Apps Script 
- * para poder ser ejecutada directamente desde el botón "Ejecutar".
- */
-function runnerCrearHojaExcepciones() {
-  Tools.crearHojaExcepciones();
-}
