@@ -123,13 +123,14 @@ function disparadorGuardia() {
       const podFormateado = pod === "WPC" ? pod : (pod.toUpperCase().includes('POD') ? pod : `POD ${pod}`);
       
       const htmlCorreo = MessageFormatter.generarCorreoGuardiaHTML(podFormateado, alarmasPorCliente);
-      const destino = mappings.mapaCorreosPods[pod] || Config.EMAIL_FALLBACK;
+      const destino = mappings.mapaCorreosPods[podFormateado] || mappings.mapaCorreosPods[pod] || Config.EMAIL_FALLBACK;
       const tz = Session.getScriptTimeZone() || "America/Argentina/Buenos_Aires";
       const fechaAsunto = Utilities.formatDate(new Date(), tz, "dd/MM/yyyy");
       const asunto = `🌙 Guardia de Alertas Críticas en Clientes - ${podFormateado} - ${fechaAsunto}`;
       
-      // Agregar copia siempre a wpc@wetcom.com (EMAIL_FALLBACK)
-      EmailService.enviarReporteGuardia(destino, asunto, htmlCorreo, Config.EMAIL_FALLBACK);
+      // Agregar copia a wpc solo si estamos en PROD
+      const copia_cc = (Config.ENTORNO === 'PROD') ? Config.EMAIL_FALLBACK : null;
+      EmailService.enviarReporteGuardia(destino, asunto, htmlCorreo, copia_cc);
     }
     
     Logger.log("Ejecución de Guardia finalizada con éxito.");
