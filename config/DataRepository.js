@@ -23,7 +23,7 @@ const DataRepository = {
     return {
       mapaClientes: this._createMap(sheetClientes.getDataRange().getValues()),
       mapaAlarmas: this._createMap(sheetTiposAlarmas.getDataRange().getValues()),
-      mapaCorreos: this._createMap(correosData),
+      mapaCorreos: this._parseCorreosEntorno(correosData),
       mapaCorreosPods: this._parseCorreosEntorno(correosPodsData),
       reglasExcepcion: this._parseExcepciones(excepcionesData)
     };
@@ -42,12 +42,12 @@ const DataRepository = {
   _parseCorreosEntorno: function(dataArray) {
     const isTesting = (Config.ENTORNO === 'TESTING');
     return dataArray.slice(1).reduce((map, row) => {
-      const podName = row[0] ? row[0].toString().trim() : null;
-      if (podName) {
+      const keyName = row[0] ? row[0].toString().trim() : null;
+      if (keyName) {
         // En TESTING usa columna C (índice 2), en PROD usa columna B (índice 1)
         const emailValue = isTesting ? (row[2] || row[1]) : row[1];
         if (emailValue) {
-          map[podName] = emailValue.toString().trim();
+          map[keyName] = emailValue.toString().trim();
         }
       }
       return map;
