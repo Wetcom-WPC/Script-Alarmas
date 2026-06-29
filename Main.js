@@ -7,7 +7,7 @@ function onOpen() {
   ui.createMenu('Ejecutar Automatización')
     .addItem('Ejecutar y Enviar a Slack', 'disparadorPrincipal_conAPI')
     .addItem('Ejecutar e Imprimir Local', 'disparadorPrincipal_Local')
-    .addItem('Ejecutar Simulacro Guardia', 'disparadorGuardia_Local')
+    .addItem('Ejecutar Guardia de Alarmas', 'disparadorGuardia')
     .addToUi();
 }
 
@@ -123,12 +123,13 @@ function disparadorGuardia() {
       const podFormateado = pod === "WPC" ? pod : (pod.toUpperCase().includes('POD') ? pod : `POD ${pod}`);
       
       const htmlCorreo = MessageFormatter.generarCorreoGuardiaHTML(podFormateado, alarmasPorCliente);
-      const destino = mappings.mapaCorreos[pod] || Config.EMAIL_FALLBACK;
+      const destino = mappings.mapaCorreosPods[pod] || Config.EMAIL_FALLBACK;
       const tz = Session.getScriptTimeZone() || "America/Argentina/Buenos_Aires";
       const fechaAsunto = Utilities.formatDate(new Date(), tz, "dd/MM/yyyy");
       const asunto = `🌙 Guardia de Alertas Críticas en Clientes - ${podFormateado} - ${fechaAsunto}`;
       
-      EmailService.enviarReporteGuardia(destino, asunto, htmlCorreo);
+      // Agregar copia siempre a wpc@wetcom.com (EMAIL_FALLBACK)
+      EmailService.enviarReporteGuardia(destino, asunto, htmlCorreo, Config.EMAIL_FALLBACK);
     }
     
     Logger.log("Ejecución de Guardia finalizada con éxito.");
@@ -136,36 +137,6 @@ function disparadorGuardia() {
     const errorMsg = "Error crítico en disparador de Guardia: " + e.message;
     Logger.log(errorMsg);
     throw new Error(errorMsg);
-  }
-}
-
-function disparadorGuardia_Local() {
-  try {
-    const ui = SpreadsheetApp.getUi();
-    const resultado = _obtenerMensajeFinal();
-    
-    if (resultado.alarmasSilenciadas && resultado.alarmasSilenciadas.length > 0) {
-      Logger.log("--- ALARMAS SILENCIADAS ---");
-      resultado.alarmasSilenciadas.forEach(log => Logger.log(log));
-    }
-
-    if (!resultado.exito) {
-      ui.alert("Aviso", "Guardia: " + resultado.mensaje, ui.ButtonSet.OK);
-      return;
-    }
-    
-    ui.alert("Simulación de Guardia (Slack)", resultado.mensaje, ui.ButtonSet.OK);
-    
-    let resumenMails = "Correos que se enviarían:\n\n";
-    for (const pod in resultado.mensajesProcesados) {
-      const podFormateado = pod === "WPC" ? pod : (pod.toUpperCase().includes('POD') ? pod : `POD ${pod}`);
-      const destino = resultado.mappings.mapaCorreos[pod] || Config.EMAIL_FALLBACK;
-      resumenMails += `- POD: ${podFormateado} -> Destino: ${destino}\n`;
-    }
-    ui.alert("Simulación de Guardia (Mails)", resumenMails, ui.ButtonSet.OK);
-    
-  } catch (e) {
-    SpreadsheetApp.getUi().alert("Error crítico en el script", e.message, SpreadsheetApp.getUi().ButtonSet.OK);
   }
 }
 

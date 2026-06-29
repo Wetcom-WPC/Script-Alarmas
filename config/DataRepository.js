@@ -9,6 +9,7 @@ const DataRepository = {
     const sheetClientes = ss.getSheetByName(Config.SHEET_CLIENTES);
     const sheetTiposAlarmas = ss.getSheetByName(Config.SHEET_TIPOS_ALARMAS);
     const sheetCorreosClientes = ss.getSheetByName(Config.SHEET_CORREOS_CLIENTES);
+    const sheetCorreosPods = ss.getSheetByName(Config.SHEET_CORREOS_PODS);
     const sheetExcepciones = ss.getSheetByName(Config.SHEET_EXCEPCIONES);
 
     if (!sheetClientes) throw new Error(`La hoja "${Config.SHEET_CLIENTES}" no está disponible.`);
@@ -16,12 +17,14 @@ const DataRepository = {
     
     // Si la hoja no existe, no rompemos el script (puede que estén en plena migración), solo pasamos un array vacío
     const correosData = sheetCorreosClientes ? sheetCorreosClientes.getDataRange().getValues() : [];
+    const correosPodsData = sheetCorreosPods ? sheetCorreosPods.getDataRange().getValues() : [];
     const excepcionesData = sheetExcepciones ? sheetExcepciones.getDataRange().getValues() : [];
 
     return {
       mapaClientes: this._createMap(sheetClientes.getDataRange().getValues()),
       mapaAlarmas: this._createMap(sheetTiposAlarmas.getDataRange().getValues()),
       mapaCorreos: this._createMap(correosData),
+      mapaCorreosPods: this._parseCorreosEntorno(correosPodsData),
       reglasExcepcion: this._parseExcepciones(excepcionesData)
     };
   },
@@ -31,6 +34,21 @@ const DataRepository = {
     return dataArray.slice(1).reduce((map, row) => {
       if (row[0] && row[1]) {
         map[row[0].toString().trim()] = row[1].toString().trim();
+      }
+      return map;
+    }, {});
+  },
+
+  _parseCorreosEntorno: function(dataArray) {
+    const isTesting = (Config.ENTORNO === 'TESTING');
+    return dataArray.slice(1).reduce((map, row) => {
+      const podName = row[0] ? row[0].toString().trim() : null;
+      if (podName) {
+        // En TESTING usa columna C (índice 2), en PROD usa columna B (índice 1)
+        const emailValue = isTesting ? (row[2] || row[1]) : row[1];
+        if (emailValue) {
+          map[podName] = emailValue.toString().trim();
+        }
       }
       return map;
     }, {});
