@@ -7,6 +7,7 @@ function onOpen() {
   ui.createMenu('Ejecutar Automatización')
     .addItem('Ejecutar y Enviar a Slack', 'disparadorPrincipal_conAPI')
     .addItem('Ejecutar e Imprimir Local', 'disparadorPrincipal_Local')
+    .addItem('Ejecutar Simulacro Guardia', 'disparadorGuardia_Local')
     .addToUi();
 }
 
@@ -34,7 +35,7 @@ function _obtenerMensajeFinal() {
     return { exito: false, mensaje: "Las alarmas obtenidas fueron filtradas/excluidas (ej: Falsos Positivos). No hay nada nuevo para enviar.", alarmasSilenciadas };
   }
   
-  return { exito: true, mensaje: mensajeFinal, alarmasSilenciadas };
+  return { exito: true, mensaje: mensajeFinal, alarmasSilenciadas, mensajesProcesados, mappings };
 }
 
 function disparadorPrincipal_conAPI() {
@@ -87,6 +88,82 @@ function disparadorPrincipal_Local() {
     ui.alert("Simulación de Ejecución (Local)", resultado.mensaje, ui.ButtonSet.OK);
     Logger.log("Ejecución local finalizada. Mensaje:\n" + resultado.mensaje);
 
+  } catch (e) {
+    SpreadsheetApp.getUi().alert("Error crítico en el script", e.message, SpreadsheetApp.getUi().ButtonSet.OK);
+  }
+}
+
+/**
+ * Entrypoint exclusivo para el Trigger de Guardia Nocturna/Fines de semana.
+ */
+function disparadorGuardia() {
+  try {
+    const resultado = _obtenerMensajeFinal();
+    
+    if (resultado.alarmasSilenciadas && resultado.alarmasSilenciadas.length > 0) {
+      resultado.alarmasSilenciadas.forEach(log => {
+        try { SlackService.enviarLogExcepcion(log); } catch(e) {}
+      });
+    }
+
+    if (!resultado.exito) {
+      Logger.log("Guardia: " + resultado.mensaje);
+      return;
+    }
+    
+    // Enviar a Slack canal de Guardia
+    SlackService.enviarNotificacionGuardia(resultado.mensaje);
+    Logger.log("Notificación de Guardia enviada a Slack.");
+
+    // Enviar correos por POD
+    const { mensajesProcesados, mappings } = resultado;
+    
+    for (const pod in mensajesProcesados) {
+      const alarmasPorCliente = mensajesProcesados[pod];
+      const podFormateado = pod === "WPC" ? pod : (pod.toUpperCase().includes('POD') ? pod : `POD ${pod}`);
+      
+      const htmlCorreo = MessageFormatter.generarCorreoGuardiaHTML(podFormateado, alarmasPorCliente);
+      const destino = mappings.mapaCorreos[pod] || Config.EMAIL_FALLBACK;
+      const tz = Session.getScriptTimeZone() || "America/Argentina/Buenos_Aires";
+      const fechaAsunto = Utilities.formatDate(new Date(), tz, "dd/MM/yyyy");
+      const asunto = `🌙 Guardia de Alertas Críticas en Clientes - ${podFormateado} - ${fechaAsunto}`;
+      
+      EmailService.enviarReporteGuardia(destino, asunto, htmlCorreo);
+    }
+    
+    Logger.log("Ejecución de Guardia finalizada con éxito.");
+  } catch (e) {
+    const errorMsg = "Error crítico en disparador de Guardia: " + e.message;
+    Logger.log(errorMsg);
+    throw new Error(errorMsg);
+  }
+}
+
+function disparadorGuardia_Local() {
+  try {
+    const ui = SpreadsheetApp.getUi();
+    const resultado = _obtenerMensajeFinal();
+    
+    if (resultado.alarmasSilenciadas && resultado.alarmasSilenciadas.length > 0) {
+      Logger.log("--- ALARMAS SILENCIADAS ---");
+      resultado.alarmasSilenciadas.forEach(log => Logger.log(log));
+    }
+
+    if (!resultado.exito) {
+      ui.alert("Aviso", "Guardia: " + resultado.mensaje, ui.ButtonSet.OK);
+      return;
+    }
+    
+    ui.alert("Simulación de Guardia (Slack)", resultado.mensaje, ui.ButtonSet.OK);
+    
+    let resumenMails = "Correos que se enviarían:\n\n";
+    for (const pod in resultado.mensajesProcesados) {
+      const podFormateado = pod === "WPC" ? pod : (pod.toUpperCase().includes('POD') ? pod : `POD ${pod}`);
+      const destino = resultado.mappings.mapaCorreos[pod] || Config.EMAIL_FALLBACK;
+      resumenMails += `- POD: ${podFormateado} -> Destino: ${destino}\n`;
+    }
+    ui.alert("Simulación de Guardia (Mails)", resumenMails, ui.ButtonSet.OK);
+    
   } catch (e) {
     SpreadsheetApp.getUi().alert("Error crítico en el script", e.message, SpreadsheetApp.getUi().ButtonSet.OK);
   }

@@ -16,6 +16,9 @@ const Config = {
   SHEET_CORREOS_CLIENTES: 'Correos Clientes',
   SHEET_EXCEPCIONES: 'Excepciones',
 
+  // Correo por defecto si un POD no tiene configuración asignada
+  EMAIL_FALLBACK: "wpc@wetcom.com",
+
   // Lista de nombres de alarma que se descartan automáticamente por diseño
   ALARMAS_IGNORADAS_POR_DEFECTO: ['Alarma de vROps', 'Alarma de vRO'],
 
@@ -53,6 +56,10 @@ const Config = {
 
   get SLACK_WEBHOOK_LOGS() {
     return this.getPropiedad('SLACK_WEBHOOK_LOGS');
+  },
+
+  get SLACK_WEBHOOK_GUARDIA() {
+    return this.getPropiedad('SLACK_WEBHOOK_GUARDIA');
   },
 
   obtenerTokenJira: function() {

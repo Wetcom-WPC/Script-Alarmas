@@ -32,6 +32,35 @@ const SlackService = {
     }
   },
 
+  enviarNotificacionGuardia: function(message) {
+    const webhookUrl = Config.SLACK_WEBHOOK_GUARDIA;
+    
+    if (!webhookUrl || webhookUrl.trim() === "") {
+      Logger.log("Webhook de Slack Guardia no configurado, saltando envío.");
+      return;
+    }
+
+    const payload = JSON.stringify({ 
+      text: message 
+    });
+    
+    const options = { 
+      method: "post", 
+      contentType: "application/json", 
+      payload: payload, 
+      muteHttpExceptions: true 
+    };
+
+    const response = UrlFetchApp.fetch(webhookUrl, options);
+    const statusCode = response.getResponseCode();
+    
+    if (statusCode < 200 || statusCode >= 300) {
+      const errorMsg = `Error HTTP ${statusCode} al enviar a Slack Guardia: ${response.getContentText()}`;
+      Logger.log(errorMsg);
+      throw new Error(errorMsg);
+    }
+  },
+
   enviarLogExcepcion: function(mensaje) {
     const webhookURL = Config.SLACK_WEBHOOK_LOGS;
     if (!webhookURL) {

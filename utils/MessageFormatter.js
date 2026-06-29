@@ -89,6 +89,24 @@ const MessageFormatter = {
     return mensaje.trim();
   },
 
+  generarCorreoGuardiaHTML: function(podFormateado, alarmasPorCliente) {
+    let htmlContent = ``;
+    for (const cliente in alarmasPorCliente) {
+      htmlContent += `<h3 style="color: #333; margin-top: 30px; margin-bottom: 10px; border-bottom: 2px solid #00875a; padding-bottom: 5px; max-width: 800px;">Cliente: ${cliente}</h3>`;
+      htmlContent += this._generarDetalleAlarmasHTML(alarmasPorCliente[cliente]);
+    }
+
+    let cuerpoFinal = `
+      <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; color: #333; max-width: 800px; text-align: left;">
+        <p style="font-size: 15px; margin-bottom: 20px;">Buenas noches equipo, se adjunta el resumen de alertas críticas registradas para el <b>${podFormateado}</b>.</p>
+        ${htmlContent}
+        <hr style="border: 0; border-top: 1px solid #eee; margin-top: 20px; margin-bottom: 15px; max-width: 800px;">
+        <p style="font-size: 12px; color: #666; margin-top: 0;">Saludos cordiales,<br><b>Wetcom Proactive Center</b></p>
+      </div>`;
+    
+    return cuerpoFinal;
+  },
+
   _formatearErrores: function(errores) {
     if (errores.length === 0) return '';
     return '*Errores encontrados:*\n' + errores.map(e => `• ${e}`).join('\n') + '\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n';
