@@ -42,7 +42,7 @@ const AlarmProcessor = {
         summaryResto = formato.nuevoSummary;
 
         // Filtrado por reglas de Excepciones dinámicas
-        const excepcion = this._verificarExcepcion(pod, cliente, origen.target, ticket.summary, mappings.reglasExcepcion);
+        const excepcion = this._verificarExcepcion(pod, cliente, alarmaProcesada, origen, mappings.reglasExcepcion);
         if (excepcion.matcheada) {
           alarmasSilenciadas.push(excepcion.log);
           return; // La alarma cae dentro de una ventana de mantenimiento o excepción, se omite.
@@ -111,27 +111,65 @@ const AlarmProcessor = {
     });
   },
 
-  _verificarExcepcion: function(pod, cliente, target, summary, reglas) {
+  _verificarExcepcion: function(pod, cliente, tipoAlarma, origen, reglas) {
     if (!reglas || reglas.length === 0) return { matcheada: false };
     
-    const podStr = pod.toString().toUpperCase().replace(/\s+/g, '');
-    const clienteStr = cliente.toString().toUpperCase().trim();
-    const textoAAnalizar = `${target} ${summary}`.toLowerCase();
+    const ahora = new Date();
 
     for (let i = 0; i < reglas.length; i++) {
       const regla = reglas[i];
-      const aplicaPod = (regla.pod === "GENERAL" || podStr.includes(regla.pod) || regla.pod.includes(podStr));
-      const aplicaCliente = (regla.cliente === "GENERAL" || clienteStr === regla.cliente);
       
-      if (aplicaPod && aplicaCliente) {
-        if (textoAAnalizar.includes(regla.palabraClave)) {
-          return {
-            matcheada: true,
-            log: `Alarma omitida para *${cliente}* en POD ${pod}.\n*Target / Summary:* ${target} | ${summary}\n*Palabra Clave Matcheada:* \`${regla.palabraClave}\``
-          };
+      // 1. Validar Caducidad
+      if (regla.validaHasta && regla.validaHasta < ahora) continue;
+      
+      // 2. Validar POD
+      if (regla.pod !== 'TODOS' && regla.pod !== pod) continue;
+      
+      // 3. Validar Cliente
+      if (regla.cliente !== 'TODOS' && regla.cliente !== cliente) continue;
+      
+      // 4. Validar Tipo Alarma
+      if (regla.tipoAlarma !== 'TODAS' && regla.tipoAlarma !== tipoAlarma) continue;
+      
+      // 5. Validar Campo y Condición
+      if (regla.campo !== 'CUALQUIERA' && regla.valor !== '') {
+        let valorAComparar = '';
+        if (regla.campo === 'vCenter') valorAComparar = origen.vCenter;
+        else if (regla.campo === 'Cluster') valorAComparar = origen.cluster;
+        else if (regla.campo === 'Host' || regla.campo === 'Target') valorAComparar = origen.target;
+        
+        valorAComparar = (valorAComparar || '').toLowerCase();
+        const valorRegla = regla.valor.toLowerCase();
+        
+        let coincidencia = false;
+        switch (regla.condicion.toLowerCase()) {
+          case 'contiene':
+            coincidencia = valorAComparar.includes(valorRegla);
+            break;
+          case 'empieza con':
+            coincidencia = valorAComparar.startsWith(valorRegla);
+            break;
+          case 'termina con':
+            coincidencia = valorAComparar.endsWith(valorRegla);
+            break;
+          case 'igual a':
+          case 'coincidencia exacta':
+            coincidencia = (valorAComparar === valorRegla);
+            break;
+          default:
+            coincidencia = valorAComparar.includes(valorRegla); // Fallback
         }
+        
+        if (!coincidencia) continue;
       }
+      
+      // Si llega acá, matcheó todo
+      return {
+        matcheada: true,
+        log: `Alarma silenciada por Excepción ID: *${regla.id}* | Cliente: ${cliente} | Alarma: ${tipoAlarma} | Target: ${origen.target || 'N/A'}`
+      };
     }
+    
     return { matcheada: false };
   }
 };

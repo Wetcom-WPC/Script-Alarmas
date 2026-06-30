@@ -62,9 +62,9 @@ const SlackService = {
   },
 
   enviarLogExcepcion: function(mensaje) {
-    const webhookURL = Config.SLACK_WEBHOOK_LOGS;
+    const webhookURL = Config.getPropiedad("SLACK_WEBHOOK_TESTING");
     if (!webhookURL) {
-      Logger.log("Log de excepción omitido (Falta SLACK_WEBHOOK_LOGS): " + mensaje);
+      Logger.log("Log de excepción omitido (Falta SLACK_WEBHOOK_TESTING): " + mensaje);
       return;
     }
     const payload = JSON.stringify({

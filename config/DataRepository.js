@@ -55,33 +55,50 @@ const DataRepository = {
   },
 
   _parseExcepciones: function(dataArray) {
-    if (dataArray.length === 0) return [];
-    const reglas = [];
-    const ahora = new Date();
-    dataArray.slice(1).forEach(row => {
-      const podRaw = row[0] ? row[0].toString().trim().toUpperCase() : "GENERAL";
-      const clienteRaw = row[1] ? row[1].toString().trim().toUpperCase() : "GENERAL";
-      const palabraClave = row[2] ? row[2].toString().trim() : "";
-      const caducidad = row[3];
-
-      if (!palabraClave) return;
-
-      let vencido = false;
-      if (caducidad && caducidad.toString().toUpperCase() !== "PERMANENTE") {
-        const fechaCaducidad = new Date(caducidad);
-        if (!isNaN(fechaCaducidad.getTime()) && fechaCaducidad < ahora) {
-          vencido = true;
+    if (!dataArray || dataArray.length < 2) return [];
+    
+    return dataArray.slice(1).map(row => {
+      const id = row[0];
+      if (!id) return null; // Saltar filas vacías
+      
+      let validaHasta = null;
+      const fechaVal = row[7];
+      const horaVal = row[8];
+      
+      if (fechaVal && fechaVal !== "") {
+        let fechaBase = new Date();
+        if (fechaVal instanceof Date) {
+          fechaBase = new Date(fechaVal.getTime());
+        } else {
+          const f = new Date(fechaVal);
+          if (!isNaN(f.getTime())) fechaBase = f;
         }
+        
+        if (horaVal && horaVal !== "") {
+          if (horaVal instanceof Date) {
+            fechaBase.setHours(horaVal.getHours(), horaVal.getMinutes(), 0, 0);
+          } else if (typeof horaVal === 'string') {
+            const partes = horaVal.split(':');
+            if (partes.length >= 2) {
+              fechaBase.setHours(parseInt(partes[0], 10), parseInt(partes[1], 10), 0, 0);
+            }
+          }
+        } else {
+          fechaBase.setHours(23, 59, 59, 999);
+        }
+        validaHasta = fechaBase;
       }
 
-      if (!vencido) {
-        reglas.push({
-          pod: podRaw,
-          cliente: clienteRaw,
-          palabraClave: palabraClave.toLowerCase()
-        });
-      }
-    });
-    return reglas;
+      return {
+        id: id.toString().trim(),
+        pod: row[1] && row[1] !== "" ? row[1].toString().trim() : 'TODOS',
+        cliente: row[2] && row[2] !== "" ? row[2].toString().trim() : 'TODOS',
+        tipoAlarma: row[3] && row[3] !== "" ? row[3].toString().trim() : 'TODAS',
+        campo: row[4] && row[4] !== "" ? row[4].toString().trim() : 'CUALQUIERA',
+        condicion: row[5] && row[5] !== "" ? row[5].toString().trim() : 'Contiene',
+        valor: row[6] ? row[6].toString().trim() : '',
+        validaHasta: validaHasta
+      };
+    }).filter(r => r !== null);
   }
 };
