@@ -14,7 +14,7 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ### Changed
 - **Lógica Dinámica de Campos (Cluster/Host):** El motor de excepciones se ajustó para heredar la inteligencia de `AlarmFormatters.js`. Si una alarma etiqueta dinámicamente a un recurso como "Cluster" (Ej: Alarmas de vSAN), la regla de excepción `Campo = Cluster` lo matcheará automáticamente, evitando falsos negativos.
-- **Etiquetas de Log Dinámicas:** Las notificaciones enviadas a Slack sobre alarmas silenciadas ahora especifican dinámicamente si el recurso omitido es un `Host`, `Cluster`, o `Datastore`, en lugar de mostrar siempre la palabra estática `Target`.
+- **Etiquetas de Log Dinámicas con Enlaces a Jira:** Las notificaciones enviadas a Slack sobre alarmas silenciadas ahora especifican dinámicamente si el recurso omitido es un `Host`, `Cluster`, o `Datastore`. Además, el encabezado incluye un hipervínculo clickeable que redirige directamente al ticket original en Jira (`https://wetcom.atlassian.net/browse/SBM-XXXX`).
 
 ### Fixed
 - **Prevención de Inyección HTML (Seguridad):** Se parcheó una vulnerabilidad severa detectada en `MessageFormatter.js` que permitía Cross-Site Scripting / Inyección de Etiquetas HTML rotas provenientes de los campos dinámicos de Jira (Summary, Target, etc) hacia la WebApp (Correos Electrónicos). Se implementó un filtro de saneamiento `_escapeHTML` en todas las variables insertadas.
