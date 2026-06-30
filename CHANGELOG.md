@@ -4,9 +4,23 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y el proyecto se adhiere a [Semantic Versioning](https://semver.org/).
 
-## [10.1.0] - 2026-06-24
+## [10.2.0] - 2026-06-30
 
 ### Added
+- **Motor de Excepciones Inteligente V2:** Se reconstruyó por completo el sistema de silenciamiento de alarmas (Excepciones). La nueva matriz soporta 9 columnas y evaluación condicional estricta.
+- **Dropdowns Dinámicos (OnEdit):** Se inyectó un trigger `onEdit` en Google Sheets para crear menúes desplegables dependientes en la matriz de excepciones. Al seleccionar un POD, la columna de Clientes se filtra dinámicamente, garantizando integridad referencial.
+- **Limpieza Automatizada de Excepciones:** Se introdujo la función `limpiarExcepcionesVencidas` en `Tools.js`. Este script escanea la matriz de excepciones y elimina silenciosamente de Google Sheets las filas cuya fecha/hora de expiración haya caducado, manteniendo la base de datos libre de basura.
+- **Canal de Testing Exclusivo para Excepciones:** Las alarmas filtradas por el motor ya no se ignoran por completo, sino que generan un log detallado (`Alarma silenciada por Excepción ID...`). Estos logs se despachan directamente al webhook `SLACK_WEBHOOK_TESTING` (Canal de Testing) para dejar un registro de auditoría sin hacer ruido en el NOC.
+
+### Changed
+- **Lógica Dinámica de Campos (Cluster/Host):** El motor de excepciones se ajustó para heredar la inteligencia de `AlarmFormatters.js`. Si una alarma etiqueta dinámicamente a un recurso como "Cluster" (Ej: Alarmas de vSAN), la regla de excepción `Campo = Cluster` lo matcheará automáticamente, evitando falsos negativos.
+- **Etiquetas de Log Dinámicas:** Las notificaciones enviadas a Slack sobre alarmas silenciadas ahora especifican dinámicamente si el recurso omitido es un `Host`, `Cluster`, o `Datastore`, en lugar de mostrar siempre la palabra estática `Target`.
+
+### Fixed
+- **Prevención de Inyección HTML (Seguridad):** Se parcheó una vulnerabilidad severa detectada en `MessageFormatter.js` que permitía Cross-Site Scripting / Inyección de Etiquetas HTML rotas provenientes de los campos dinámicos de Jira (Summary, Target, etc) hacia la WebApp (Correos Electrónicos). Se implementó un filtro de saneamiento `_escapeHTML` en todas las variables insertadas.
+- **Falsos Negativos por Espacios/Prefijos:** Se normalizó la evaluación de campos cruzados. El script ahora detecta automáticamente y elimina prefijos como "POD" y espacios en blanco al momento de evaluar si una alarma de Jira coincide con una regla de Excepción, resolviendo un bug donde `"POD 5"` fallaba al compararse contra `"5"`.
+
+## [10.1.0] - 2026-06-24
 - **UI Dinámica de Slack:** Los enlaces de generación de correos fueron agrupados al final del mensaje del POD, debajo de la pregunta consultiva. El texto del botón ahora incluye el nombre del cliente explícito (Ej: `Generar correo para Banco Macro`) para mejorar la experiencia de usuario y evitar clics erróneos.
 - **Variables de Entorno en Drive:** Se extrajo el ID hardcodeado de la carpeta de Google Drive en `Config.js`. Ahora utiliza un getter dinámico que lee `CARPETA_BORRADORES_PROD` o `CARPETA_BORRADORES_TESTING` desde el *PropertiesService*, garantizando aislamiento total entre desarrollos y el entorno productivo.
 
