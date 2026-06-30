@@ -123,13 +123,15 @@ const AlarmProcessor = {
       if (regla.validaHasta && regla.validaHasta < ahora) continue;
       
       // 2. Validar POD
-      if (regla.pod !== 'TODOS' && regla.pod !== pod) continue;
+      const p1 = pod.toString().toUpperCase().replace(/POD/g, '').trim();
+      const p2 = regla.pod.toString().toUpperCase().replace(/POD/g, '').trim();
+      if (regla.pod !== 'TODOS' && p1 !== p2) continue;
       
       // 3. Validar Cliente
-      if (regla.cliente !== 'TODOS' && regla.cliente !== cliente) continue;
+      if (regla.cliente !== 'TODOS' && regla.cliente.trim() !== cliente.trim()) continue;
       
       // 4. Validar Tipo Alarma
-      if (regla.tipoAlarma !== 'TODAS' && regla.tipoAlarma !== tipoAlarma) continue;
+      if (regla.tipoAlarma !== 'TODAS' && regla.tipoAlarma.trim() !== tipoAlarma.trim()) continue;
       
       // 5. Validar Campo y Condición
       if (regla.campo !== 'CUALQUIERA' && regla.valor !== '') {
