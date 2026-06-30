@@ -7,7 +7,7 @@ function onOpen() {
   ui.createMenu('Ejecutar Automatización')
     .addItem('Ejecutar y Enviar a Slack', 'disparadorPrincipal_conAPI')
     .addItem('Ejecutar e Imprimir Local', 'disparadorPrincipal_Local')
-    .addItem('Ejecutar Guardia de Alarmas', 'disparadorGuardia')
+    .addItem('Ejecutar Guardia de Alarmas', 'disparadorGuardia_Manual')
     .addToUi();
 }
 
@@ -95,6 +95,7 @@ function disparadorPrincipal_Local() {
 
 /**
  * Entrypoint exclusivo para el Trigger de Guardia Nocturna/Fines de semana.
+ * Realiza la validación de feriados antes de continuar.
  */
 function disparadorGuardia() {
   try {
@@ -104,47 +105,70 @@ function disparadorGuardia() {
       return;
     }
 
-    const resultado = _obtenerMensajeFinal();
-    
-    if (resultado.alarmasSilenciadas && resultado.alarmasSilenciadas.length > 0) {
-      resultado.alarmasSilenciadas.forEach(item => {
-        try { SlackService.enviarLogExcepcion(item.log, item.ticketKey); } catch(e) {}
-      });
-    }
-
-    if (!resultado.exito) {
-      Logger.log("Guardia: " + resultado.mensaje);
-      return;
-    }
-    
-    // Enviar a Slack canal de Guardia
-    SlackService.enviarNotificacionGuardia(resultado.mensaje);
-    Logger.log("Notificación de Guardia enviada a Slack.");
-
-    // Enviar correos por POD
-    const { mensajesProcesados, mappings } = resultado;
-    
-    for (const pod in mensajesProcesados) {
-      const alarmasPorCliente = mensajesProcesados[pod];
-      const podFormateado = pod === "WPC" ? pod : (pod.toUpperCase().includes('POD') ? pod : `POD ${pod}`);
-      
-      const htmlCorreo = MessageFormatter.generarCorreoGuardiaHTML(podFormateado, alarmasPorCliente);
-      const destino = mappings.mapaCorreosPods[podFormateado] || mappings.mapaCorreosPods[pod] || Config.EMAIL_FALLBACK;
-      const tz = Session.getScriptTimeZone() || "America/Argentina/Buenos_Aires";
-      const fechaAsunto = Utilities.formatDate(new Date(), tz, "dd/MM/yyyy");
-      const asunto = `🌙 Guardia de Alertas Críticas en Clientes - ${podFormateado} - ${fechaAsunto}`;
-      
-      // Agregar copia a wpc solo si estamos en PROD
-      const copia_cc = (Config.ENTORNO === 'PROD') ? Config.EMAIL_FALLBACK : null;
-      EmailService.enviarReporteGuardia(destino, asunto, htmlCorreo, copia_cc);
-    }
-    
-    Logger.log("Ejecución de Guardia finalizada con éxito.");
+    _procesarYEnviarGuardia();
   } catch (e) {
     const errorMsg = "Error crítico en disparador de Guardia: " + e.message;
     Logger.log(errorMsg);
     throw new Error(errorMsg);
   }
+}
+
+/**
+ * Entrypoint exclusivo para el Botón del Menú de Sheets.
+ * Ejecuta la guardia ignorando la validación de feriados (Ejecución forzada/urgente).
+ */
+function disparadorGuardia_Manual() {
+  try {
+    Logger.log("Ejecución de guardia manual iniciada desde el menú (Ignorando validación de feriados).");
+    _procesarYEnviarGuardia();
+    SpreadsheetApp.getUi().alert("Éxito", "La guardia manual finalizó y los reportes fueron enviados.", SpreadsheetApp.getUi().ButtonSet.OK);
+  } catch (e) {
+    const errorMsg = "Error en Guardia Manual: " + e.message;
+    Logger.log(errorMsg);
+    SpreadsheetApp.getUi().alert("Error", errorMsg, SpreadsheetApp.getUi().ButtonSet.OK);
+  }
+}
+
+/**
+ * Lógica core compartida para la guardia.
+ */
+function _procesarYEnviarGuardia() {
+  const resultado = _obtenerMensajeFinal();
+  
+  if (resultado.alarmasSilenciadas && resultado.alarmasSilenciadas.length > 0) {
+    resultado.alarmasSilenciadas.forEach(item => {
+      try { SlackService.enviarLogExcepcion(item.log, item.ticketKey); } catch(e) {}
+    });
+  }
+
+  if (!resultado.exito) {
+    Logger.log("Guardia: " + resultado.mensaje);
+    return;
+  }
+  
+  // Enviar a Slack canal de Guardia
+  SlackService.enviarNotificacionGuardia(resultado.mensaje);
+  Logger.log("Notificación de Guardia enviada a Slack.");
+
+  // Enviar correos por POD
+  const { mensajesProcesados, mappings } = resultado;
+  
+  for (const pod in mensajesProcesados) {
+    const alarmasPorCliente = mensajesProcesados[pod];
+    const podFormateado = pod === "WPC" ? pod : (pod.toUpperCase().includes('POD') ? pod : `POD ${pod}`);
+    
+    const htmlCorreo = MessageFormatter.generarCorreoGuardiaHTML(podFormateado, alarmasPorCliente);
+    const destino = mappings.mapaCorreosPods[podFormateado] || mappings.mapaCorreosPods[pod] || Config.EMAIL_FALLBACK;
+    const tz = Session.getScriptTimeZone() || "America/Argentina/Buenos_Aires";
+    const fechaAsunto = Utilities.formatDate(new Date(), tz, "dd/MM/yyyy");
+    const asunto = `🌙 Guardia de Alertas Críticas en Clientes - ${podFormateado} - ${fechaAsunto}`;
+    
+    // Agregar copia a wpc solo si estamos en PROD
+    const copia_cc = (Config.ENTORNO === 'PROD') ? Config.EMAIL_FALLBACK : null;
+    EmailService.enviarReporteGuardia(destino, asunto, htmlCorreo, copia_cc);
+  }
+  
+  Logger.log("Ejecución de Guardia finalizada con éxito.");
 }
 
 /**
