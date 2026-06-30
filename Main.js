@@ -223,23 +223,60 @@ function onEdit(e) {
 }
 
 /**
- * Función temporal para testear manualmente la lógica de feriados y fines de semana.
- * Seleccioná esta función en la consola de Apps Script y dale a "Ejecutar".
+ * Función temporal para forzar la ejecución de la guardia simulando que hoy es un Feriado.
+ * Esto ignorará la validación de fecha y procederá a generar correos y enviar a Slack.
+ * ¡Atención! Esto enviará mensajes reales a los canales configurados.
  */
-function testerFeriados() {
-  Logger.log("=== INICIANDO TEST DE FERIADOS ===");
-  
-  // Test 1: Día Laborable (Miércoles 25 de Febrero de 2026)
-  const diaLaborable = new Date(2026, 1, 25); // Los meses empiezan en 0 (Febrero = 1)
-  Logger.log(`Test 1 (Día hábil - Miércoles 25/02/2026): ¿Es no laborable? ${Tools.esFinDeSemanaOFeriado(diaLaborable)}`);
+function disparadorGuardia_Forzado() {
+  try {
+    Logger.log("=== INICIANDO GUARDIA FORZADA (SIMULACIÓN DE DÍA NO LABORAL) ===");
+    
+    // Al pasarle un 1 de Enero explícito, la función creerá que hoy es feriado y lo permitirá
+    const fechaFalsa = new Date(2026, 0, 1);
+    if (!Tools.esFinDeSemanaOFeriado(fechaFalsa)) {
+      Logger.log("Error inesperado: la fecha falsa no fue detectada como feriado.");
+      return;
+    }
+    
+    Logger.log("Simulación exitosa: El motor cree que hoy es Feriado. Procediendo con la guardia...");
+    
+    // Reutilizamos la lógica principal pero sin la validación de fecha normal
+    const resultado = _obtenerMensajeFinal();
+    
+    if (resultado.alarmasSilenciadas && resultado.alarmasSilenciadas.length > 0) {
+      resultado.alarmasSilenciadas.forEach(item => {
+        try { SlackService.enviarLogExcepcion(item.log, item.ticketKey); } catch(e) {}
+      });
+    }
 
-  // Test 2: Fin de Semana (Sábado 28 de Febrero de 2026)
-  const finDeSemana = new Date(2026, 1, 28);
-  Logger.log(`Test 2 (Fin de Semana - Sábado 28/02/2026): ¿Es no laborable? ${Tools.esFinDeSemanaOFeriado(finDeSemana)}`);
+    if (!resultado.exito) {
+      Logger.log("Guardia Forzada: " + resultado.mensaje);
+      return;
+    }
+    
+    // Enviar a Slack canal de Guardia
+    SlackService.enviarNotificacionGuardia(resultado.mensaje);
+    Logger.log("Notificación de Guardia Forzada enviada a Slack.");
 
-  // Test 3: Feriado real en Argentina (Jueves 1 de Enero de 2026 - Año Nuevo)
-  const feriadoReal = new Date(2026, 0, 1);
-  Logger.log(`Test 3 (Feriado Nacional - Jueves 01/01/2026): ¿Es no laborable? ${Tools.esFinDeSemanaOFeriado(feriadoReal)}`);
-  
-  Logger.log("=== FIN DEL TEST ===");
+    // Enviar correos por POD
+    const { mensajesProcesados, mappings } = resultado;
+    
+    for (const pod in mensajesProcesados) {
+      const alarmasPorCliente = mensajesProcesados[pod];
+      const podFormateado = pod === "WPC" ? pod : (pod.toUpperCase().includes('POD') ? pod : `POD ${pod}`);
+      
+      const htmlCorreo = MessageFormatter.generarCorreoGuardiaHTML(podFormateado, alarmasPorCliente);
+      const destino = mappings.mapaCorreosPods[podFormateado] || mappings.mapaCorreosPods[pod] || Config.EMAIL_FALLBACK;
+      const tz = Session.getScriptTimeZone() || "America/Argentina/Buenos_Aires";
+      const fechaAsunto = Utilities.formatDate(new Date(), tz, "dd/MM/yyyy");
+      const asunto = `🌙 [TEST FORZADO] Guardia de Alertas Críticas - ${podFormateado} - ${fechaAsunto}`;
+      
+      const copia_cc = (Config.ENTORNO === 'PROD') ? Config.EMAIL_FALLBACK : null;
+      EmailService.enviarReporteGuardia(destino, asunto, htmlCorreo, copia_cc);
+    }
+    
+    Logger.log("=== EJECUCIÓN FORZADA DE GUARDIA FINALIZADA ===");
+  } catch (e) {
+    Logger.log("Error crítico en disparador Forzado: " + e.message);
+  }
 }
