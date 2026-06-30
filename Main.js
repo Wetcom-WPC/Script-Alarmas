@@ -149,6 +149,14 @@ function runnerLimpiarBorradoresViejos() {
 }
 
 /**
+ * Función global (Entrypoint) para limpiar las excepciones vencidas de la planilla.
+ * Ideal para ser programada como trigger diario a la madrugada.
+ */
+function runnerLimpiarExcepcionesVencidas() {
+  Tools.limpiarExcepcionesVencidas();
+}
+
+/**
  * Trigger simple que se ejecuta automáticamente al editar una celda en Google Sheets.
  * Utilizado para crear menús desplegables dependientes (Dropdowns Dinámicos) en Excepciones.
  */
