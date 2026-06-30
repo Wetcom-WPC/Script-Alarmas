@@ -111,31 +111,24 @@ const Tools = {
       return true;
     }
 
-    // 2. Validar Feriados usando la API pública y Cache
+    // 2. Validar Feriados usando la API pública
     const año = fecha.getFullYear();
-    const cache = CacheService.getScriptCache();
-    const cacheKey = `feriados_arg_${año}`;
+    let feriadosData = null;
     
-    let feriadosData = cache.get(cacheKey);
-    
-    if (!feriadosData) {
-      try {
-        const url = `https://api.argentinadatos.com/v1/feriados/${año}`;
-        const response = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
-        
-        if (response.getResponseCode() === 200) {
-          feriadosData = response.getContentText();
-          // Guardar en caché por 6 horas (21600 segundos), máximo de CacheService
-          cache.put(cacheKey, feriadosData, 21600);
-          Logger.log(`API de feriados consultada y cacheada para el año ${año}.`);
-        } else {
-          Logger.log(`Error API feriados HTTP ${response.getResponseCode()}`);
-          return false; // Fallback: asumir día hábil si la API falla
-        }
-      } catch (e) {
-        Logger.log(`Error de red consultando feriados: ${e.message}`);
-        return false;
+    try {
+      const url = `https://api.argentinadatos.com/v1/feriados/${año}`;
+      const response = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+      
+      if (response.getResponseCode() === 200) {
+        feriadosData = response.getContentText();
+        Logger.log(`API de feriados consultada para el año ${año}.`);
+      } else {
+        Logger.log(`Error API feriados HTTP ${response.getResponseCode()}`);
+        return false; // Fallback: asumir día hábil si la API falla
       }
+    } catch (e) {
+      Logger.log(`Error de red consultando feriados: ${e.message}`);
+      return false;
     }
     
     try {
