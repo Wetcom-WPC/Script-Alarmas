@@ -147,3 +147,63 @@ function disparadorGuardia() {
 function runnerLimpiarBorradoresViejos() {
   Tools.limpiarBorradoresViejos();
 }
+
+/**
+ * Trigger simple que se ejecuta automáticamente al editar una celda en Google Sheets.
+ * Utilizado para crear menús desplegables dependientes (Dropdowns Dinámicos) en Excepciones.
+ */
+function onEdit(e) {
+  if (!e || !e.range) return;
+  
+  const range = e.range;
+  const sheet = range.getSheet();
+  
+  // Prevenir ejecución si se pegan o borran múltiples celdas de golpe
+  if (range.getNumRows() > 1 || range.getNumColumns() > 1) return;
+  
+  // Validar hoja Excepciones y columna POD (Columna B / Índice 2)
+  if (sheet.getName() === Config.SHEET_EXCEPCIONES && range.getColumn() === 2 && range.getRow() > 1) {
+    const row = range.getRow();
+    const selectedPod = e.value ? e.value.toString().trim() : "";
+    const cellCliente = sheet.getRange(row, 3); // Columna C (Cliente)
+    
+    // Si la celda POD queda en blanco, limpiamos la celda Cliente
+    if (selectedPod === "") {
+      cellCliente.clearContent();
+      cellCliente.clearDataValidations();
+      return;
+    }
+    
+    const clientesSheet = e.source.getSheetByName(Config.SHEET_CLIENTES);
+    if (!clientesSheet) return;
+    
+    const lastRow = clientesSheet.getLastRow();
+    if (lastRow < 2) return; // No hay datos de clientes
+    
+    const data = clientesSheet.getRange(2, 1, lastRow - 1, 3).getValues();
+    const listaClientes = ["TODOS"];
+    
+    data.forEach(fila => {
+      const clienteNombre = fila[1]; // Asumiendo Col B
+      const clientePod = fila[2];    // Asumiendo Col C
+      
+      // Si el POD coincide, o si eligieron "TODOS" los PODs, mostramos el cliente
+      if (clientePod === selectedPod || selectedPod === "TODOS") {
+        if (clienteNombre && clienteNombre !== "") {
+          listaClientes.push(clienteNombre);
+        }
+      }
+    });
+    
+    // Construir e inyectar el dropdown
+    const rule = SpreadsheetApp.newDataValidation()
+                             .requireValueInList(listaClientes, true)
+                             .setAllowInvalid(false)
+                             .build();
+                             
+    cellCliente.setDataValidation(rule);
+    
+    // Autoseleccionar "TODOS" por defecto para mejor UX
+    cellCliente.setValue("TODOS"); 
+  }
+}
