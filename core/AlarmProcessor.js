@@ -136,9 +136,14 @@ const AlarmProcessor = {
       // 5. Validar Campo y Condición
       if (regla.campo !== 'CUALQUIERA' && regla.valor !== '') {
         let valorAComparar = '';
-        if (regla.campo === 'vCenter') valorAComparar = origen.vCenter;
-        else if (regla.campo === 'Cluster') valorAComparar = origen.cluster;
-        else if (regla.campo === 'Host' || regla.campo === 'Target') valorAComparar = origen.target;
+        if (regla.campo === 'vCenter') {
+          valorAComparar = origen.vCenter;
+        } else if (regla.campo === 'Cluster') {
+          // Si el Target fue etiquetado dinámicamente como Cluster, usamos el target. Sino, el cluster extraído.
+          valorAComparar = (origen.etiquetaTarget === 'Cluster') ? origen.target : origen.cluster;
+        } else if (regla.campo === 'Host' || regla.campo === 'Target') {
+          valorAComparar = origen.target;
+        }
         
         valorAComparar = (valorAComparar || '').toLowerCase();
         const valorRegla = regla.valor.toLowerCase();
@@ -166,9 +171,10 @@ const AlarmProcessor = {
       }
       
       // Si llega acá, matcheó todo
+      const etiqueta = origen.etiquetaTarget || 'Target';
       return {
         matcheada: true,
-        log: `Alarma silenciada por Excepción ID: *${regla.id}* | Cliente: ${cliente} | Alarma: ${tipoAlarma} | Target: ${origen.target || 'N/A'}`
+        log: `Alarma silenciada por Excepción ID: *${regla.id}* | Cliente: ${cliente} | Alarma: ${tipoAlarma} | ${etiqueta}: ${origen.target || 'N/A'}`
       };
     }
     
