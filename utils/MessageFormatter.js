@@ -92,7 +92,8 @@ const MessageFormatter = {
   generarCorreoGuardiaHTML: function(podFormateado, alarmasPorCliente) {
     let htmlContent = ``;
     for (const cliente in alarmasPorCliente) {
-      htmlContent += `<h3 style="color: #333; margin-top: 30px; margin-bottom: 10px; border-bottom: 2px solid #00875a; padding-bottom: 5px; max-width: 800px;">Cliente: ${cliente}</h3>`;
+      const clienteEscapado = this._escapeHTML(cliente);
+      htmlContent += `<h3 style="color: #333; margin-top: 30px; margin-bottom: 10px; border-bottom: 2px solid #00875a; padding-bottom: 5px; max-width: 800px;">Cliente: ${clienteEscapado}</h3>`;
       htmlContent += this._generarDetalleAlarmasHTML(alarmasPorCliente[cliente]);
     }
 
@@ -288,14 +289,16 @@ const MessageFormatter = {
         const group = groupByCombination[key];
         const mensajeFecha = this._crearMensajeFecha(group.entries);
         
-        const targetsText = group.targets.filter(t => t && !t.toLowerCase().includes('desconocido') && !t.toLowerCase().includes('no encontrado')).join('<br>') || 'N/A';
+        const targetsText = group.targets.filter(t => t && !t.toLowerCase().includes('desconocido') && !t.toLowerCase().includes('no encontrado'))
+                                         .map(t => this._escapeHTML(t))
+                                         .join('<br>') || 'N/A';
         
         let vcenterHtml = '';
         if (group.vCenter && !group.vCenter.toLowerCase().includes('desconocido')) {
           vcenterHtml += `
             <tr style="border-bottom: 1px solid #e0e0e0;">
               <td style="padding: 12px 15px; font-weight: bold; color: #555; background-color: #f9f9f9; text-transform: uppercase;">VCENTER</td>
-              <td style="padding: 12px 15px; color: #666; line-height: 1.5;">${group.vCenter}</td>
+              <td style="padding: 12px 15px; color: #666; line-height: 1.5;">${this._escapeHTML(group.vCenter)}</td>
             </tr>
           `;
         }
@@ -305,7 +308,7 @@ const MessageFormatter = {
           clusterHtml += `
             <tr style="border-bottom: 1px solid #e0e0e0;">
               <td style="padding: 12px 15px; font-weight: bold; color: #555; background-color: #f9f9f9; text-transform: uppercase;">CLUSTER</td>
-              <td style="padding: 12px 15px; color: #666; line-height: 1.5;">${group.cluster}</td>
+              <td style="padding: 12px 15px; color: #666; line-height: 1.5;">${this._escapeHTML(group.cluster)}</td>
             </tr>
           `;
         }
@@ -316,10 +319,10 @@ const MessageFormatter = {
             if (summary.indexOf('\n') !== -1) {
               const lines = summary.split('\n');
               for (let i = 0; i < lines.length; i++) {
-                summariesHTML += `<li>${lines[i].trim()}</li>`;
+                summariesHTML += `<li>${this._escapeHTML(lines[i].trim())}</li>`;
               }
             } else {
-              summariesHTML += `<li>${summary}</li>`;
+              summariesHTML += `<li>${this._escapeHTML(summary)}</li>`;
             }
           });
         } else {
@@ -332,14 +335,14 @@ const MessageFormatter = {
           <tbody>
             <tr style="border-bottom: 1px solid #e0e0e0;">
               <td style="padding: 12px 15px; width: 20%; font-weight: bold; color: #555; background-color: #f0f7f4; text-transform: uppercase;">ALARMA</td>
-              <td style="padding: 12px 15px; width: 80%; color: #222;"><b>${alarma}</b></td>
+              <td style="padding: 12px 15px; width: 80%; color: #222;"><b>${this._escapeHTML(alarma)}</b></td>
             </tr>
             <tr style="border-bottom: 1px solid #e0e0e0;">
               <td style="padding: 12px 15px; font-weight: bold; color: #555; background-color: #f9f9f9; text-transform: uppercase;">FECHA</td>
               <td style="padding: 12px 15px; color: #666;">${mensajeFecha.replace('El día ', '').replace('Desde el día ', 'Desde el ')}</td>
             </tr>
             <tr style="border-bottom: 1px solid #e0e0e0;">
-              <td style="padding: 12px 15px; font-weight: bold; color: #555; background-color: #f9f9f9; text-transform: uppercase;">${group.etiquetaTarget.toUpperCase()}</td>
+              <td style="padding: 12px 15px; font-weight: bold; color: #555; background-color: #f9f9f9; text-transform: uppercase;">${this._escapeHTML(group.etiquetaTarget).toUpperCase()}</td>
               <td style="padding: 12px 15px; color: #444; font-family: 'Courier New', Courier, monospace; font-size: 14px;">${targetsText}</td>
             </tr>
             ${vcenterHtml}
@@ -372,5 +375,18 @@ const MessageFormatter = {
       hexString += hex;
     }
     return hexString;
+  },
+
+  /**
+   * Escapa caracteres especiales de HTML para prevenir Inyección HTML / XSS
+   */
+  _escapeHTML: function(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 };
