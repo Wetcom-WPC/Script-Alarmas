@@ -221,3 +221,25 @@ function onEdit(e) {
     cellCliente.setValue("TODOS"); 
   }
 }
+
+/**
+ * Función temporal para testear manualmente la lógica de feriados y fines de semana.
+ * Seleccioná esta función en la consola de Apps Script y dale a "Ejecutar".
+ */
+function testerFeriados() {
+  Logger.log("=== INICIANDO TEST DE FERIADOS ===");
+  
+  // Test 1: Día Laborable (Miércoles 25 de Febrero de 2026)
+  const diaLaborable = new Date(2026, 1, 25); // Los meses empiezan en 0 (Febrero = 1)
+  Logger.log(`Test 1 (Día hábil - Miércoles 25/02/2026): ¿Es no laborable? ${Tools.esFinDeSemanaOFeriado(diaLaborable)}`);
+
+  // Test 2: Fin de Semana (Sábado 28 de Febrero de 2026)
+  const finDeSemana = new Date(2026, 1, 28);
+  Logger.log(`Test 2 (Fin de Semana - Sábado 28/02/2026): ¿Es no laborable? ${Tools.esFinDeSemanaOFeriado(finDeSemana)}`);
+
+  // Test 3: Feriado real en Argentina (Jueves 1 de Enero de 2026 - Año Nuevo)
+  const feriadoReal = new Date(2026, 0, 1);
+  Logger.log(`Test 3 (Feriado Nacional - Jueves 01/01/2026): ¿Es no laborable? ${Tools.esFinDeSemanaOFeriado(feriadoReal)}`);
+  
+  Logger.log("=== FIN DEL TEST ===");
+}
