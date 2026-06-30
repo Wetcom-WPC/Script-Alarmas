@@ -44,9 +44,9 @@ function disparadorPrincipal_conAPI() {
     
     // Enviar logs de excepciones independientemente del exito del mensaje principal
     if (resultado.alarmasSilenciadas && resultado.alarmasSilenciadas.length > 0) {
-      resultado.alarmasSilenciadas.forEach(log => {
+      resultado.alarmasSilenciadas.forEach(item => {
         try {
-          SlackService.enviarLogExcepcion(log);
+          SlackService.enviarLogExcepcion(item.log, item.ticketKey);
         } catch(e) {
           Logger.log("Error enviando log de excepción: " + e.message);
         }
@@ -76,7 +76,7 @@ function disparadorPrincipal_Local() {
     
     if (resultado.alarmasSilenciadas && resultado.alarmasSilenciadas.length > 0) {
       Logger.log("--- ALARMAS SILENCIADAS ---");
-      resultado.alarmasSilenciadas.forEach(log => Logger.log(log));
+      resultado.alarmasSilenciadas.forEach(item => Logger.log(`[${item.ticketKey}] ${item.log}`));
     }
 
     if (!resultado.exito) {
@@ -101,8 +101,8 @@ function disparadorGuardia() {
     const resultado = _obtenerMensajeFinal();
     
     if (resultado.alarmasSilenciadas && resultado.alarmasSilenciadas.length > 0) {
-      resultado.alarmasSilenciadas.forEach(log => {
-        try { SlackService.enviarLogExcepcion(log); } catch(e) {}
+      resultado.alarmasSilenciadas.forEach(item => {
+        try { SlackService.enviarLogExcepcion(item.log, item.ticketKey); } catch(e) {}
       });
     }
 

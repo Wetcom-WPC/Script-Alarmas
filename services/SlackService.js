@@ -61,14 +61,20 @@ const SlackService = {
     }
   },
 
-  enviarLogExcepcion: function(mensaje) {
+  enviarLogExcepcion: function(mensaje, ticketKey) {
     const webhookURL = Config.getPropiedad("SLACK_WEBHOOK_TESTING");
     if (!webhookURL) {
       Logger.log("Log de excepción omitido (Falta SLACK_WEBHOOK_TESTING): " + mensaje);
       return;
     }
+    
+    let header = "🔇 *Alarma Silenciada*";
+    if (ticketKey) {
+      header = `🔇 *Alarma Silenciada* | <https://wetcom.atlassian.net/browse/${ticketKey}|${ticketKey}>`;
+    }
+    
     const payload = JSON.stringify({
-      text: `🔇 *Alarma Silenciada*\n_${mensaje}_`
+      text: `${header}\n_${mensaje}_`
     });
     const options = { 
       method: "post", 

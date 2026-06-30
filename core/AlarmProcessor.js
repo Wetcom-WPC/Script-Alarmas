@@ -44,7 +44,7 @@ const AlarmProcessor = {
         // Filtrado por reglas de Excepciones dinámicas
         const excepcion = this._verificarExcepcion(pod, cliente, alarmaProcesada, origen, mappings.reglasExcepcion);
         if (excepcion.matcheada) {
-          alarmasSilenciadas.push(excepcion.log);
+          alarmasSilenciadas.push({ log: excepcion.log, ticketKey: ticket.key });
           return; // La alarma cae dentro de una ventana de mantenimiento o excepción, se omite.
         }
 
