@@ -98,5 +98,62 @@ const Tools = {
     } catch(e) {
       Logger.log("Error al limpiar excepciones vencidas: " + e.message);
     }
+  },
+
+  /**
+   * Verifica si la fecha proporcionada (por defecto hoy) es fin de semana o feriado en Argentina.
+   */
+  esFinDeSemanaOFeriado: function(fecha = new Date()) {
+    // 1. Validar Fin de Semana (Sábado = 6, Domingo = 0)
+    const dia = fecha.getDay();
+    if (dia === 0 || dia === 6) {
+      Logger.log("Hoy es fin de semana.");
+      return true;
+    }
+
+    // 2. Validar Feriados usando la API pública y Cache
+    const año = fecha.getFullYear();
+    const cache = CacheService.getScriptCache();
+    const cacheKey = `feriados_arg_${año}`;
+    
+    let feriadosData = cache.get(cacheKey);
+    
+    if (!feriadosData) {
+      try {
+        const url = `https://api.argentinadatos.com/v1/feriados/${año}`;
+        const response = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+        
+        if (response.getResponseCode() === 200) {
+          feriadosData = response.getContentText();
+          // Guardar en caché por 6 horas (21600 segundos), máximo de CacheService
+          cache.put(cacheKey, feriadosData, 21600);
+          Logger.log(`API de feriados consultada y cacheada para el año ${año}.`);
+        } else {
+          Logger.log(`Error API feriados HTTP ${response.getResponseCode()}`);
+          return false; // Fallback: asumir día hábil si la API falla
+        }
+      } catch (e) {
+        Logger.log(`Error de red consultando feriados: ${e.message}`);
+        return false;
+      }
+    }
+    
+    try {
+      const feriados = JSON.parse(feriadosData);
+      
+      // Formatear la fecha a YYYY-MM-DD para buscarla en el JSON
+      const mes = String(fecha.getMonth() + 1).padStart(2, '0');
+      const diaMes = String(fecha.getDate()).padStart(2, '0');
+      const fechaBuscada = `${año}-${mes}-${diaMes}`;
+      
+      const esFeriado = feriados.some(feriado => feriado.fecha === fechaBuscada);
+      if (esFeriado) {
+        Logger.log(`Hoy (${fechaBuscada}) es Feriado en Argentina.`);
+      }
+      return esFeriado;
+    } catch (e) {
+      Logger.log(`Error parseando JSON de feriados: ${e.message}`);
+      return false;
+    }
   }
 };

@@ -98,6 +98,12 @@ function disparadorPrincipal_Local() {
  */
 function disparadorGuardia() {
   try {
+    // 1. Validar que la ejecución corresponda a un día no laborable (Finde o Feriado)
+    if (!Tools.esFinDeSemanaOFeriado()) {
+      Logger.log("Ejecución de guardia omitida: Hoy es un día laborable normal.");
+      return;
+    }
+
     const resultado = _obtenerMensajeFinal();
     
     if (resultado.alarmasSilenciadas && resultado.alarmasSilenciadas.length > 0) {
