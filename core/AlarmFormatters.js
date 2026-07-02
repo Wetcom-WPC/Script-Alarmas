@@ -62,6 +62,12 @@ const AlarmFormatters = {
 
     'Insufficient resources to satisfy vSphere HA failover level': function(summaryResto, target, description) {
       return { incluir: true, nuevoTarget: target, nuevoSummary: summaryResto, etiquetaTarget: 'Cluster' };
+    },
+
+    'Alarma de HA': function(summaryResto, target, description) {
+      let etiquetaTarget = 'Cluster'; // Por defecto HA suele ser de cluster
+      if (description.toLowerCase().includes('host')) etiquetaTarget = 'Host';
+      return { incluir: true, nuevoTarget: target, nuevoSummary: summaryResto, etiquetaTarget: etiquetaTarget };
     }
   },
 
