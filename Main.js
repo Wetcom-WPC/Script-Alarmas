@@ -8,6 +8,8 @@ function onOpen() {
     .addItem('Ejecutar y Enviar a Slack', 'disparadorPrincipal_conAPI')
     .addItem('Ejecutar e Imprimir Local', 'disparadorPrincipal_Local')
     .addItem('Ejecutar Guardia de Alarmas', 'disparadorGuardia_Manual')
+    .addSeparator()
+    .addItem('Actualizar Dropdowns de Clientes', 'actualizarDropdownsClientes')
     .addToUi();
 }
 
@@ -187,61 +189,72 @@ function runnerLimpiarExcepcionesVencidas() {
 }
 
 /**
- * Trigger simple que se ejecuta automáticamente al editar una celda en Google Sheets.
- * Utilizado para crear menús desplegables dependientes (Dropdowns Dinámicos) en Excepciones.
+ * Actualiza masivamente la validación de datos (dropdowns) en la columna 'Cliente' 
+ * de todas las hojas de Excepciones dinámicamente.
  */
-function onEdit(e) {
-  if (!e || !e.range) return;
-  
-  const range = e.range;
-  const sheet = range.getSheet();
-  
-  // Prevenir ejecución si se pegan o borran múltiples celdas de golpe
-  if (range.getNumRows() > 1 || range.getNumColumns() > 1) return;
-  
-  // Validar hoja Excepciones y columna POD (Columna B / Índice 2)
-  if (sheet.getName() === Config.SHEET_EXCEPCIONES && range.getColumn() === 2 && range.getRow() > 1) {
-    const row = range.getRow();
-    const selectedPod = e.value ? e.value.toString().trim() : "";
-    const cellCliente = sheet.getRange(row, 3); // Columna C (Cliente)
-    
-    // Si la celda POD queda en blanco, limpiamos la celda Cliente
-    if (selectedPod === "") {
-      cellCliente.clearContent();
-      cellCliente.clearDataValidations();
-      return;
-    }
-    
-    const clientesSheet = e.source.getSheetByName(Config.SHEET_CLIENTES);
+function actualizarDropdownsClientes() {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const clientesSheet = ss.getSheetByName(Config.SHEET_CLIENTES);
     if (!clientesSheet) return;
     
     const lastRow = clientesSheet.getLastRow();
-    if (lastRow < 2) return; // No hay datos de clientes
+    if (lastRow < 2) return;
     
+    // Obtener toda la data de clientes (Columna A, B y C)
     const data = clientesSheet.getRange(2, 1, lastRow - 1, 3).getValues();
-    const listaClientes = ["TODOS"];
     
-    data.forEach(fila => {
-      const clienteNombre = fila[1]; // Asumiendo Col B
-      const clientePod = fila[2];    // Asumiendo Col C
-      
-      // Si el POD coincide, o si eligieron "TODOS" los PODs, mostramos el cliente
-      if (clientePod === selectedPod || selectedPod === "TODOS") {
-        if (clienteNombre && clienteNombre !== "") {
-          listaClientes.push(clienteNombre);
+    const sheets = ss.getSheets();
+    let hojasActualizadas = 0;
+    
+    sheets.forEach(sheet => {
+      const sheetName = sheet.getName();
+      if (sheetName.startsWith("Excepciones ") && sheetName !== "Excepciones") {
+        const podName = sheetName.replace("Excepciones", "").trim();
+        
+        // Filtrar clientes específicos para este POD
+        const listaClientes = ["TODOS"];
+        data.forEach(fila => {
+          const clienteNombre = fila[1]; // Columna B: Cliente
+          const clientePod = fila[2];    // Columna C: POD
+          
+          if (clientePod === podName || podName === "TODOS") {
+            if (clienteNombre && clienteNombre !== "") {
+              listaClientes.push(clienteNombre);
+            }
+          }
+        });
+        
+        // Aplicar a toda la columna B (Cliente) desde la fila 2 hacia abajo
+        const maxRows = sheet.getMaxRows();
+        if (maxRows > 1) {
+          const cellClienteRange = sheet.getRange(2, 2, maxRows - 1, 1);
+          const rule = SpreadsheetApp.newDataValidation()
+                                     .requireValueInList(listaClientes, true)
+                                     .setAllowInvalid(false)
+                                     .build();
+          cellClienteRange.setDataValidation(rule);
         }
+        hojasActualizadas++;
       }
     });
     
-    // Construir e inyectar el dropdown
-    const rule = SpreadsheetApp.newDataValidation()
-                             .requireValueInList(listaClientes, true)
-                             .setAllowInvalid(false)
-                             .build();
-                             
-    cellCliente.setDataValidation(rule);
-    
-    // Autoseleccionar "TODOS" por defecto para mejor UX
-    cellCliente.setValue("TODOS"); 
+    Logger.log(`Dropdowns de Clientes actualizados exitosamente en ${hojasActualizadas} hojas de Excepciones.`);
+  } catch(e) {
+    Logger.log("Error al actualizar dropdowns masivos: " + e.message);
+  }
+}
+
+/**
+ * Trigger simple que se ejecuta al editar la planilla.
+ * Si detecta que se modificó la hoja "Clientes", actualiza automáticamente 
+ * los dropdowns en todas las pestañas de excepciones.
+ */
+function onEdit(e) {
+  if (!e || !e.range) return;
+  const sheet = e.range.getSheet();
+  
+  if (sheet.getName() === Config.SHEET_CLIENTES) {
+    actualizarDropdownsClientes();
   }
 }

@@ -18,14 +18,27 @@ const DataRepository = {
     // Si la hoja no existe, no rompemos el script (puede que estén en plena migración), solo pasamos un array vacío
     const correosData = sheetCorreosClientes ? sheetCorreosClientes.getDataRange().getValues() : [];
     const correosPodsData = sheetCorreosPods ? sheetCorreosPods.getDataRange().getValues() : [];
-    const excepcionesData = sheetExcepciones ? sheetExcepciones.getDataRange().getValues() : [];
+    
+    // Leer todas las hojas de Excepciones separadas por POD
+    let todasLasExcepciones = [];
+    const sheets = ss.getSheets();
+    sheets.forEach(sheet => {
+      const sheetName = sheet.getName();
+      // Ignorar la vieja "Excepciones" y buscar "Excepciones [POD]"
+      if (sheetName.startsWith("Excepciones ") && sheetName !== "Excepciones") {
+        const podName = sheetName.replace("Excepciones", "").trim();
+        const data = sheet.getDataRange().getValues();
+        const parseadas = this._parseExcepciones(data, podName);
+        todasLasExcepciones = todasLasExcepciones.concat(parseadas);
+      }
+    });
 
     return {
       mapaClientes: this._createMap(sheetClientes.getDataRange().getValues()),
       mapaAlarmas: this._createMap(sheetTiposAlarmas.getDataRange().getValues()),
       mapaCorreos: this._parseCorreosEntorno(correosData),
       mapaCorreosPods: this._parseCorreosEntorno(correosPodsData),
-      reglasExcepcion: this._parseExcepciones(excepcionesData)
+      reglasExcepcion: todasLasExcepciones
     };
   },
 
@@ -54,7 +67,7 @@ const DataRepository = {
     }, {});
   },
 
-  _parseExcepciones: function(dataArray) {
+  _parseExcepciones: function(dataArray, podName) {
     if (!dataArray || dataArray.length < 2) return [];
     
     return dataArray.slice(1).map(row => {
@@ -62,8 +75,8 @@ const DataRepository = {
       if (!id) return null; // Saltar filas vacías
       
       let validaHasta = null;
-      const fechaVal = row[7];
-      const horaVal = row[8];
+      const fechaVal = row[6]; // Índice corregido (Antes 7)
+      const horaVal = row[7];  // Índice corregido (Antes 8)
       
       if (fechaVal && fechaVal !== "") {
         let fechaBase = new Date();
@@ -91,12 +104,12 @@ const DataRepository = {
 
       return {
         id: id.toString().trim(),
-        pod: row[1] && row[1] !== "" ? row[1].toString().trim() : 'TODOS',
-        cliente: row[2] && row[2] !== "" ? row[2].toString().trim() : 'TODOS',
-        tipoAlarma: row[3] && row[3] !== "" ? row[3].toString().trim() : 'TODAS',
-        campo: row[4] && row[4] !== "" ? row[4].toString().trim() : 'CUALQUIERA',
-        condicion: row[5] && row[5] !== "" ? row[5].toString().trim() : 'Contiene',
-        valor: row[6] ? row[6].toString().trim() : '',
+        pod: podName, // Obtenido del nombre de la pestaña
+        cliente: row[1] && row[1] !== "" ? row[1].toString().trim() : 'TODOS',
+        tipoAlarma: row[2] && row[2] !== "" ? row[2].toString().trim() : 'TODAS',
+        campo: row[3] && row[3] !== "" ? row[3].toString().trim() : 'CUALQUIERA',
+        condicion: row[4] && row[4] !== "" ? row[4].toString().trim() : 'Contiene',
+        valor: row[5] ? row[5].toString().trim() : '',
         validaHasta: validaHasta
       };
     }).filter(r => r !== null);

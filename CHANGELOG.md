@@ -8,8 +8,9 @@ El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1
 
 ### Added
 - **Motor de Excepciones Inteligente V2:** Se reconstruyó por completo el sistema de silenciamiento de alarmas (Excepciones). La nueva matriz soporta 9 columnas y evaluación condicional estricta.
-- **Dropdowns Dinámicos (OnEdit):** Se inyectó un trigger `onEdit` en Google Sheets para crear menúes desplegables dependientes en la matriz de excepciones. Al seleccionar un POD, la columna de Clientes se filtra dinámicamente, garantizando integridad referencial.
-- **Limpieza Automatizada de Excepciones:** Se introdujo la función `limpiarExcepcionesVencidas` en `Tools.js`. Este script escanea la matriz de excepciones y elimina silenciosamente de Google Sheets las filas cuya fecha/hora de expiración haya caducado, manteniendo la base de datos libre de basura.
+- **Automatización de Dropdowns Dinámicos (onChange/onEdit):** Se eliminó el obsoleto y lento `onEdit` celda por celda. En su lugar, el script monitorea pasivamente los cambios estructurales. Al editar la hoja `Clientes` o agregar un nuevo POD, se regeneran instantáneamente las validaciones de datos para columnas enteras.
+- **Arquitectura de Excepciones Multi-hoja:** Las excepciones ahora se encuentran separadas lógicamente en múltiples hojas (Ej: `Excepciones POD 1`, `Excepciones WPC`). El motor de lectura y limpieza descubre estas hojas dinámicamente basándose en su nomenclatura, eliminando la necesidad de una columna "POD".
+- **Limpieza Automatizada de Excepciones:** Se introdujo la función `limpiarExcepcionesVencidas` en `Tools.js`. Este script escanea todas las matrices de excepciones (múltiples hojas) y elimina silenciosamente de Google Sheets las filas cuya fecha/hora de expiración haya caducado, manteniendo la base de datos libre de basura.
 - **Canal de Testing Exclusivo para Excepciones:** Las alarmas filtradas por el motor ya no se ignoran por completo, sino que generan un log detallado (`Alarma silenciada por Excepción ID...`). Estos logs se despachan directamente al webhook `SLACK_WEBHOOK_TESTING` (Canal de Testing) para dejar un registro de auditoría sin hacer ruido en el NOC.
 
 ### Changed
