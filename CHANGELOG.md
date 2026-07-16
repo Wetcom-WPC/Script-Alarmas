@@ -4,6 +4,11 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y el proyecto se adhiere a [Semantic Versioning](https://semver.org/).
 
+## [10.3.0] - 2026-07-16
+
+### Added
+- **Filtro de Excepciones por Datastore:** Se introdujo la capacidad de filtrar excepciones utilizando el nuevo campo `Datastore`. El motor examina inteligentemente tanto el `Target` principal de la alarma como el `Cuerpo` descriptivo de la misma buscando coincidencias (Ej: *Affected datastores: CTALLE...*), permitiendo silenciar infraestructura de almacenamiento específica sin importar en qué host detone el fallo.
+
 ## [10.2.0] - 2026-06-30
 
 ### Added
