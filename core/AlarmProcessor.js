@@ -42,7 +42,7 @@ const AlarmProcessor = {
         summaryResto = formato.nuevoSummary;
 
         // Filtrado por reglas de Excepciones dinámicas
-        const excepcion = this._verificarExcepcion(pod, cliente, alarmaProcesada, origen, mappings.reglasExcepcion);
+        const excepcion = this._verificarExcepcion(pod, cliente, alarmaProcesada, origen, summaryResto, mappings.reglasExcepcion);
         if (excepcion.matcheada) {
           alarmasSilenciadas.push({ log: excepcion.log, ticketKey: ticket.key });
           return; // La alarma cae dentro de una ventana de mantenimiento o excepción, se omite.
@@ -111,7 +111,7 @@ const AlarmProcessor = {
     });
   },
 
-  _verificarExcepcion: function(pod, cliente, tipoAlarma, origen, reglas) {
+  _verificarExcepcion: function(pod, cliente, tipoAlarma, origen, summaryResto, reglas) {
     if (!reglas || reglas.length === 0) return { matcheada: false };
     
     const ahora = new Date();
@@ -143,6 +143,8 @@ const AlarmProcessor = {
           valorAComparar = (origen.etiquetaTarget === 'Cluster') ? origen.target : origen.cluster;
         } else if (regla.campo === 'Host' || regla.campo === 'Target') {
           valorAComparar = origen.target;
+        } else if (regla.campo === 'Datastore') {
+          valorAComparar = `${origen.target || ''} ${summaryResto || ''}`;
         }
         
         valorAComparar = (valorAComparar || '').toLowerCase();
