@@ -9,6 +9,7 @@ const Config = {
   JIRA_BASE_URL: "wetcom.atlassian.net",
   JIRA_FILTER_ID: "23855",
   JIRA_POD_FIELD_ID: "customfield_12331", // Extraído al archivo de Configuración
+  JIRA_TRANSITION_CERRAR_ALARMA: "Cerrar Alarma", // Nombre de la transición de Jira que cierra una alarma silenciada
   
   // Nombres de hojas de cálculo
   SHEET_CLIENTES: 'Clientes',

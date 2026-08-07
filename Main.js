@@ -44,13 +44,18 @@ function disparadorPrincipal_conAPI() {
   try {
     const resultado = _obtenerMensajeFinal();
     
-    // Enviar logs de excepciones independientemente del exito del mensaje principal
+    // Enviar logs de excepciones y cerrar los tickets en Jira, independientemente del exito del mensaje principal
     if (resultado.alarmasSilenciadas && resultado.alarmasSilenciadas.length > 0) {
       resultado.alarmasSilenciadas.forEach(item => {
         try {
           SlackService.enviarLogExcepcion(item.log, item.ticketKey);
         } catch(e) {
           Logger.log("Error enviando log de excepción: " + e.message);
+        }
+        try {
+          JiraService.cerrarAlarma(item.ticketKey, item.excepcionId);
+        } catch(e) {
+          Logger.log("Error cerrando alarma en Jira: " + e.message);
         }
       });
     }
@@ -59,7 +64,7 @@ function disparadorPrincipal_conAPI() {
       Logger.log(resultado.mensaje);
       return;
     }
-    
+
     // 5. Envía el resultado a Slack
     SlackService.enviarNotificacion(resultado.mensaje);
     Logger.log("Ejecución finalizada con éxito. Mensaje generado:\n" + resultado.mensaje);
@@ -140,6 +145,7 @@ function _procesarYEnviarGuardia() {
   if (resultado.alarmasSilenciadas && resultado.alarmasSilenciadas.length > 0) {
     resultado.alarmasSilenciadas.forEach(item => {
       try { SlackService.enviarLogExcepcion(item.log, item.ticketKey); } catch(e) {}
+      try { JiraService.cerrarAlarma(item.ticketKey, item.excepcionId); } catch(e) {}
     });
   }
 
