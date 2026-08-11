@@ -72,7 +72,7 @@ const DataRepository = {
   },
 
   _parseCorreosEntorno: function(dataArray) {
-    const isTesting = (Config.ENTORNO === 'TESTING');
+    const isTesting = !Config.esProduccion();
     return dataArray.slice(1).reduce((map, row) => {
       const keyName = row[0] ? row[0].toString().trim() : null;
       if (keyName) {

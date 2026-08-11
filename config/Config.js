@@ -2,8 +2,54 @@
  * Configuración central del script
  */
 const Config = {
-  // Entorno actual ('TESTING' para desarrollo/pruebas y 'PROD' para producción)
-  ENTORNO: 'TESTING',
+  // Valores admitidos para el entorno. Se exponen como constantes para que nadie tenga
+  // que repetir el string suelto y para que un typo rompa en la carga, no en producción.
+  ENTORNO_TESTING: 'TESTING',
+  ENTORNO_PRODUCCION: 'PRODUCCION',
+
+  // Cache del entorno ya resuelto. PropertiesService es una llamada de red encubierta y
+  // el entorno se consulta muchas veces por corrida.
+  _entornoCacheado: null,
+
+  /**
+   * Entorno actual, leído de la Script Property "ENTORNO" (TESTING | PRODUCCION).
+   *
+   * Vive en las propiedades del script y no en este archivo para que el MISMO código
+   * corra en alarmas-testing y en alarmas-produccion sin editar nada: antes, pasar a
+   * producción implicaba tocar una constante versionada, y un push con el valor
+   * equivocado mandaba las alarmas reales al canal de pruebas (o al revés).
+   *
+   * Si la property falta o trae un valor no reconocido se asume TESTING. Es el lado
+   * seguro: ante una configuración rota preferimos no publicar en los canales
+   * productivos ni escribir en los tickets de los clientes.
+   */
+  get ENTORNO() {
+    if (this._entornoCacheado) return this._entornoCacheado;
+
+    let valor = null;
+    try {
+      valor = PropertiesService.getScriptProperties().getProperty('ENTORNO');
+    } catch (e) {
+      Logger.log(`No se pudo leer la Script Property "ENTORNO": ${e.message}`);
+    }
+
+    // Se aceptan las variantes razonables para que un "PROD" tipeado de memoria no
+    // degrade el script a testing sin que nadie lo note.
+    const normalizado = (valor || '').toString().trim().toUpperCase();
+    const esProd = ['PRODUCCION', 'PRODUCCIÓN', 'PROD'].indexOf(normalizado) !== -1;
+
+    if (!esProd && normalizado !== this.ENTORNO_TESTING) {
+      Logger.log(`Script Property "ENTORNO" ausente o no reconocida ("${valor}"). Se asume ${this.ENTORNO_TESTING}.`);
+    }
+
+    this._entornoCacheado = esProd ? this.ENTORNO_PRODUCCION : this.ENTORNO_TESTING;
+    return this._entornoCacheado;
+  },
+
+  /** Único lugar donde se decide si estamos en producción. */
+  esProduccion: function() {
+    return this.ENTORNO === this.ENTORNO_PRODUCCION;
+  },
 
   // Configuración de Jira
   JIRA_BASE_URL: "wetcom.atlassian.net",
@@ -87,10 +133,9 @@ const Config = {
 
   // ID de la carpeta en Google Drive donde se guardarán los borradores (.json)
   get ID_CARPETA_BORRADORES() {
-    if (this.ENTORNO === 'TESTING') {
-      return this.getPropiedad("CARPETA_BORRADORES_TESTING");
-    }
-    return this.getPropiedad("CARPETA_BORRADORES_PROD");
+    return this.esProduccion()
+      ? this.getPropiedad("CARPETA_BORRADORES_PROD")
+      : this.getPropiedad("CARPETA_BORRADORES_TESTING");
   },
 
   // Configuración de WebApp para Generador de Borradores
@@ -111,14 +156,23 @@ const Config = {
   },
 
   obtenerWebhookSlack: function() {
-    if (this.ENTORNO === 'TESTING') {
-      return this.getPropiedad("SLACK_WEBHOOK_TESTING");
-    }
-    return this.getPropiedad("SLACK_WEBHOOK_PROD");
+    return this.esProduccion()
+      ? this.getPropiedad("SLACK_WEBHOOK_PROD")
+      : this.getPropiedad("SLACK_WEBHOOK_TESTING");
   },
 
-  get SLACK_WEBHOOK_LOGS() {
-    return this.getPropiedad('SLACK_WEBHOOK_LOGS');
+  /**
+   * Webhook del canal de logs de excepciones (alarmas silenciadas y resultado del cierre
+   * automático en Jira).
+   *
+   * Antes SlackService apuntaba siempre a SLACK_WEBHOOK_TESTING, así que en producción
+   * estos avisos —incluido el "no se pudo cerrar el ticket"— caían en el canal de pruebas,
+   * donde nadie los mira.
+   */
+  obtenerWebhookLogs: function() {
+    return this.esProduccion()
+      ? this.getPropiedad("SLACK_WEBHOOK_LOGS_PROD")
+      : this.getPropiedad("SLACK_WEBHOOK_LOGS_TESTING");
   },
 
   get SLACK_WEBHOOK_GUARDIA() {

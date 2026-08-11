@@ -76,17 +76,25 @@ function crearSandbox() {
  * que queremos observar, así que se reemplaza por un doble que registra cada llamada y
  * devuelve las respuestas que le indique el test.
  *
- * @param {Function} responder - recibe (url, options) y devuelve { code, body }.
+ * @param {Function} responder    - recibe (url, options) y devuelve { code, body }.
+ * @param {Object}   [propiedades] - Script Properties simuladas. Las claves no declaradas
+ *                                   devuelven un valor ficticio; para simular una property
+ *                                   ausente hay que declararla explícitamente en null.
  */
-function crearSandboxServicios(responder) {
+function crearSandboxServicios(responder, propiedades) {
   const logs = [];
   const llamadas = [];
+  const props = propiedades || {};
 
   const sandbox = {
     Logger: { log: (msg) => logs.push(String(msg)) },
     console,
     PropertiesService: {
-      getScriptProperties: () => ({ getProperty: (clave) => `valor-falso-${clave}` })
+      getScriptProperties: () => ({
+        getProperty: (clave) => (
+          Object.prototype.hasOwnProperty.call(props, clave) ? props[clave] : `valor-falso-${clave}`
+        )
+      })
     },
     UrlFetchApp: {
       fetch: (url, options) => {

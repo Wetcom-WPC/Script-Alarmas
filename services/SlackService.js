@@ -67,9 +67,12 @@ const SlackService = {
    * si el ticket se pudo cerrar en Jira o no, así el fallo no queda sólo en los Logger.
    */
   enviarLogExcepcion: function(mensaje, ticketKey, cierre) {
-    const webhookURL = Config.getPropiedad("SLACK_WEBHOOK_TESTING");
-    if (!webhookURL) {
-      Logger.log("Log de excepción omitido (Falta SLACK_WEBHOOK_TESTING): " + mensaje);
+    // Si el webhook no está configurado, el aviso no se pierde: baja al Logger.
+    let webhookURL;
+    try {
+      webhookURL = Config.obtenerWebhookLogs();
+    } catch (e) {
+      Logger.log(`Log de excepción omitido (${e.message}): ${mensaje}`);
       return;
     }
 

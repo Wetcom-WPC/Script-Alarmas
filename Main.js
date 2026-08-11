@@ -185,8 +185,8 @@ function _procesarYEnviarGuardia() {
     const fechaAsunto = Utilities.formatDate(new Date(), tz, "dd/MM/yyyy");
     const asunto = `🌙 Guardia de Alertas Críticas en Clientes - ${podFormateado} - ${fechaAsunto}`;
     
-    // Agregar copia a wpc solo si estamos en PROD
-    const copia_cc = (Config.ENTORNO === 'PROD') ? Config.EMAIL_FALLBACK : null;
+    // Agregar copia a wpc solo si estamos en producción
+    const copia_cc = Config.esProduccion() ? Config.EMAIL_FALLBACK : null;
     EmailService.enviarReporteGuardia(destino, asunto, htmlCorreo, copia_cc);
   }
   

@@ -4,6 +4,21 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y el proyecto se adhiere a [Semantic Versioning](https://semver.org/).
 
+## [10.6.0] - 2026-08-11
+
+### Fixed
+- **Los Logs de Excepciones Iban Siempre al Canal de Testing:** `SlackService.enviarLogExcepcion` tenía hardcodeado `SLACK_WEBHOOK_TESTING`, así que en producción **todos** los avisos de alarmas silenciadas —y el ✅/⚠️ del cierre automático en Jira— caían en el canal de pruebas, donde nadie los mira. Justo el aviso de "no se pudo cerrar el ticket" terminaba en el lugar equivocado. Ahora se resuelve por entorno vía `Config.obtenerWebhookLogs()` (`SLACK_WEBHOOK_LOGS_PROD` / `SLACK_WEBHOOK_LOGS_TESTING`). Se eliminó de paso una guarda muerta: `getPropiedad()` lanza si la clave falta, por lo que el `if (!webhookURL)` posterior era inalcanzable; ahora la ausencia se captura y el aviso baja al Logger en vez de perderse.
+- **Comparación de Entorno Inconsistente:** `Main.js` comparaba `Config.ENTORNO === 'PROD'` para decidir la copia a `wpc@` en el correo de guardia, mientras el resto del código comparaba contra `'TESTING'`. Al renombrar el valor productivo, esa línea habría dejado de agregar la copia sin que nada fallara. Toda la decisión pasa ahora por `Config.esProduccion()`.
+
+### Changed
+- **El Entorno se Configura por Script Property, no por Código:** `Config.ENTORNO` era una constante editada a mano en un archivo versionado, de la que dependen el webhook de Slack, el canal de logs, la carpeta de Drive y la copia a `wpc@`. Pasar a producción obligaba a editarla, pushear y acordarse de no volver a commitearla mal; un `clasp push` con el valor equivocado publicaba las alarmas reales en el canal de pruebas, y desde v10.5.0 además cierra tickets reales en Jira. Ahora se lee de la Script Property `ENTORNO` (`TESTING` | `PRODUCCION`), así el mismo commit corre en los dos proyectos sin tocar nada.
+  - Se aceptan `PROD` y `PRODUCCIÓN` como sinónimos, y el valor se normaliza (espacios y mayúsculas), para que un tipeo de memoria no degrade el script en silencio.
+  - **Ante property ausente, ilegible o no reconocida se asume `TESTING`** y se deja aviso en el Logger. Es el lado seguro: una configuración rota no debe publicar en canales productivos ni escribir en los tickets de los clientes.
+  - El valor se cachea por ejecución: `PropertiesService` es una llamada de red encubierta y el entorno se consulta muchas veces por corrida.
+
+### Added
+- **Tests de Entorno y Ruteo de Webhooks (`test/entorno.test.js`):** 11 casos que blindan el interruptor más delicado del proyecto. Incluyen explícitamente el caso "valor mal tipeado" y verifican que en producción los logs **no** vayan al webhook de testing. `crearSandboxServicios()` acepta ahora un juego de Script Properties simuladas.
+
 ## [10.5.3] - 2026-08-11
 
 ### Changed

@@ -114,11 +114,15 @@ function main() {
   const dedup = require('./deduplicacion.test').correr(AlarmProcessor);
   console.log(`${dedup.total - dedup.fallos}/${dedup.total} casos ok`);
 
+  console.log('\n── Entorno y ruteo de webhooks ──');
+  const entorno = require('./entorno.test').correr();
+  console.log(`${entorno.total - entorno.fallos}/${entorno.total} casos ok`);
+
   console.log('\n── Cierre automático en Jira ──');
   const cierre = require('./cierreJira.test').correr();
   console.log(`${cierre.total - cierre.fallos}/${cierre.total} casos ok`);
 
-  const totalFallos = fallos + exc.fallos + dedup.fallos + cierre.fallos;
+  const totalFallos = fallos + exc.fallos + dedup.fallos + entorno.fallos + cierre.fallos;
   if (totalFallos > 0) {
     console.error(`\n${totalFallos} caso(s) con diferencias.`);
     process.exit(1);

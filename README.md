@@ -10,7 +10,8 @@ Para garantizar calidad *Enterprise*, el código original ha sido dividido en m�
 
 ### 1. `Config.js`
 Maneja las constantes estáticas, entornos y la configuración global del proyecto.
-* **Entornos (PROD/TEST):** Posee una bandera `ENTORNO` para cambiar rápidamente a un webhook y una carpeta de Google Drive de pruebas, evitando notificaciones erróneas y generación de json "basura" durante el desarrollo.
+* **Entornos (`TESTING` / `PRODUCCION`):** El entorno se lee de la Script Property `ENTORNO`, **no** de una constante en el código. Así el mismo commit corre en `alarmas-testing` y en `alarmas-produccion` sin editar nada, y no existe el riesgo de pushear el proyecto productivo con la bandera apuntando a pruebas (o al revés). Determina el webhook de Slack, el canal de logs, la carpeta de Drive y si el correo de guardia lleva copia a `wpc@`.
+  * Si la property falta o trae un valor no reconocido, **se asume `TESTING`**: ante una configuración rota preferimos no publicar en los canales productivos ni escribir en los tickets de los clientes. Queda un aviso en el Logger. El único punto donde se decide esto es `Config.esProduccion()`.
 * **Seguridad:** Extrae los tokens secretos y claves de entorno (`JIRA_AUTH_TOKEN`, `SLACK_WEBHOOK_PROD`, `CARPETA_BORRADORES_PROD`, etc) del `PropertiesService` seguro de Google.
 
 ### 2. `JiraService.js`
@@ -70,10 +71,21 @@ Punto de entrada HTTP (doGet) para la aplicación web integrada.
 ## Despliegue y Configuración
 
 1. **Gestión de Entornos (Pruebas Locales sin molestar a Clientes):**
-   Abre `Config.js` y asegúrate de configurar `ENTORNO: 'TESTING'` antes de empezar a programar.
+   El entorno **no se toca en el código**. Se define en la Script Property `ENTORNO` de cada proyecto de Apps Script: `TESTING` en `alarmas-testing`, `PRODUCCION` en `alarmas-produccion`. Se aceptan además `PROD` y `PRODUCCIÓN` como sinónimos. Cualquier otro valor (o su ausencia) se interpreta como `TESTING`.
 
 2. **Propiedades Seguras (Secrets):**
-   Las variables operativas (`JIRA_AUTH_TOKEN`, `SLACK_WEBHOOK_PROD`, `SLACK_WEBHOOK_TESTING`, `CARPETA_BORRADORES_PROD`, `CARPETA_BORRADORES_TESTING`) viven encriptadas/protegidas en *Configuración de Proyecto > Propiedades de Script* dentro del IDE web de Apps Script.
+   Viven en *Configuración de Proyecto > Propiedades de Script* dentro del IDE web de Apps Script. Cada proyecto tiene su propio juego:
+
+   | Property | Para qué |
+   |---|---|
+   | `ENTORNO` | `TESTING` o `PRODUCCION` |
+   | `JIRA_AUTH_TOKEN` | Basic auth de la API de Jira (lectura + transición + comentario) |
+   | `SLACK_WEBHOOK_PROD` / `SLACK_WEBHOOK_TESTING` | Canal del resumen de alarmas |
+   | `SLACK_WEBHOOK_LOGS_PROD` / `SLACK_WEBHOOK_LOGS_TESTING` | Canal de logs de excepciones y del cierre automático |
+   | `SLACK_WEBHOOK_GUARDIA` | Canal de la guardia nocturna |
+   | `CARPETA_BORRADORES_PROD` / `CARPETA_BORRADORES_TESTING` | Carpeta de Drive para los borradores |
+
+   Sólo se leen las que corresponden al entorno activo, así que un proyecto no necesita cargar las del otro.
 
 3. **Uso local con Clasp:** 
    ```bash
