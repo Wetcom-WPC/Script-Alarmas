@@ -23,6 +23,47 @@ const Config = {
   // Lista de nombres de alarma que se descartan automáticamente por diseño
   ALARMAS_IGNORADAS_POR_DEFECTO: ['Alarma de vROps', 'Alarma de vRO'],
 
+  // Texto con el que se dan de alta en "Tipos de Alarmas" las filas todavía sin traducir.
+  // Se compara por PREFIJO, así que también cubre variantes numeradas de la planilla
+  // ("Configurar en Excel 2", "Configurar en Excel 3", ...). Mientras la columna B
+  // empiece con este texto, se muestra el nombre original de la alarma.
+  // Ver AlarmParser.resolverNombreAlarma.
+  PLACEHOLDER_TIPO_ALARMA: 'Configurar en Excel',
+
+  // Prefijos de "sobre" que el equipo nuevo antepone al ${ALERT_DEFINITION} en el summary
+  // (ej: "9x5 - Operations - ", "24x7 Wetcom - ").
+  //
+  // Los grupos de captura son parte del contrato con AlarmEnvelope:
+  //   grupo 1 = cobertura contratada (9x5 / 24x7)   → se muestra como rótulo en Slack
+  //   grupo 2 = origen emisor (vCenter / Operations / Wetcom)
+  //
+  // El prefijo NO se usa para rutear parsers: el ruteo va por la estructura de la
+  // description (ver AlarmParserRegistry), para que un cambio de prefijo no rompa nada.
+  PREFIJOS_SOBRE_ALARMA: [
+    /^\s*(9x5|24x7)\s*-?\s*(vCenter|Operations|Wetcom)\s*-\s*/i
+  ],
+
+  // Mostrar la cobertura (9x5 / 24x7) como rótulo encima de cada alarma.
+  // Apagado: el mensaje del NOC no lo lleva. Ponelo en true si alguna vez se quiere ver.
+  // Ojo: esto controla SÓLO el texto. La separación en bloques por cobertura se mantiene
+  // igual, porque es lo que evita que una misma alarma recibida bajo dos contratos
+  // distintos se mezcle en un único ítem.
+  MOSTRAR_ROTULO_COBERTURA: false,
+
+  // Orden de preferencia cuando la MISMA alarma sobre el MISMO objeto llega por más de una
+  // cobertura (las dos reglas de automatización disparan sobre el mismo evento). Se informa
+  // una sola vez, la de la cobertura que aparezca primero en esta lista.
+  // Las alarmas del formato histórico no traen cobertura y nunca se deduplican.
+  PRIORIDAD_COBERTURA: ['9x5', '24x7'],
+
+  // Alarmas cuyo título ya es suficientemente explícito y no necesitan que se publique
+  // la descripción de vROps (suele ser un párrafo genérico y largo).
+  // Se puede escribir tanto el nombre traducido de la planilla como el original en inglés.
+  ALARMAS_SIN_DESCRIPCION: [
+    'Alarma de desconexión de host',
+    'Host has lost connection to vCenter Server'
+  ],
+
   // ID de la carpeta en Google Drive donde se guardarán los borradores (.json)
   get ID_CARPETA_BORRADORES() {
     if (this.ENTORNO === 'TESTING') {

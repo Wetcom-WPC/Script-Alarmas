@@ -106,36 +106,79 @@ const AlarmParser = {
     }
 
     // Proceso de cruce con Mapa (Sin reglas hardcodeadas)
-    const alarmaNormalizada = alarmaNombre.replace(/'/g, '').toLowerCase().trim();
-    
-    // Búsqueda en la hoja "Tipos de Alarmas"
-    const alarmaEncontrada = Object.keys(mapaAlarmas).find(key =>
-      key.replace(/'/g, '').toLowerCase().trim() === alarmaNormalizada
-    );
-    
-    let alarmaProcesada = alarmaEncontrada ? mapaAlarmas[alarmaEncontrada] : `Alarma desconocida [${alarmaNombre}]`;
-    
-    if (!alarmaEncontrada) {
-      warnings.push(`Alarma no encontrada para el summary "${summary}"`);
-    }
+    const alarmaProcesada = this.resolverNombreAlarma(alarmaNombre, mapaAlarmas, warnings, summary);
 
     return { alarma: alarmaProcesada, summaryResto };
   },
 
+  /**
+   * Cruza un nombre de alarma crudo contra la hoja "Tipos de Alarmas".
+   * Compartido por todos los parsers para que la resolución del nombre sea idéntica
+   * en cualquier dialecto.
+   *
+   * Contempla el caso de las filas cargadas con el texto placeholder (ej: "Configurar en Excel"):
+   * son alarmas dadas de alta pero todavía sin traducir. Si se devolviera ese valor tal cual,
+   * TODAS las alarmas pendientes aparecerían en Slack bajo un mismo bullet llamado
+   * "Configurar en Excel" y agrupadas entre sí. En vez de eso se muestra el nombre original
+   * y se deja un warning. Cuando alguien complete la columna B de la planilla, empieza a
+   * funcionar solo, sin tocar código.
+   *
+   * @param {string} alarmaNombre    Nombre crudo extraído del summary.
+   * @param {Object} mapaAlarmas     Diccionario de la hoja "Tipos de Alarmas".
+   * @param {Array}  warnings        Acumulador de avisos (se muta).
+   * @param {string} summaryOriginal Summary completo, sólo para el texto del warning.
+   * @return {string} Nombre de alarma a mostrar.
+   */
+  resolverNombreAlarma: function(alarmaNombre, mapaAlarmas, warnings, summaryOriginal) {
+    const normalizar = (txt) => (txt || '').toString().replace(/'/g, '').toLowerCase().trim();
+    const alarmaNormalizada = normalizar(alarmaNombre);
+
+    const alarmaEncontrada = Object.keys(mapaAlarmas || {}).find(key =>
+      normalizar(key) === alarmaNormalizada
+    );
+
+    if (!alarmaEncontrada) {
+      warnings.push(`Alarma no encontrada para el summary "${summaryOriginal}"`);
+      return `Alarma desconocida [${alarmaNombre}]`;
+    }
+
+    const valorMapeado = mapaAlarmas[alarmaEncontrada];
+    const placeholder = Config.PLACEHOLDER_TIPO_ALARMA;
+
+    // Comparación por prefijo: la planilla usa variantes numeradas ("Configurar en Excel 2")
+    if (placeholder && normalizar(valorMapeado).indexOf(normalizar(placeholder)) === 0) {
+      warnings.push(`Tipo de alarma pendiente de configurar en la planilla: "${alarmaNombre}"`);
+      return alarmaNombre;
+    }
+
+    return valorMapeado;
+  },
+
+  /**
+   * Corte de un valor: hasta el fin de línea, el fin del texto, o la próxima etiqueta
+   * conocida del cuerpo.
+   *
+   * Lo último es imprescindible. Jira aplana la description desde ADF uniendo los
+   * párrafos con un ESPACIO, así que un cuerpo que en la UI se ve en varias líneas puede
+   * llegar sin saltos. Cortando sólo por '\n' o fin de texto, un campo como vCenter se
+   * termina llevando puesto todo el resto del cuerpo como si fuera su valor.
+   */
+  CORTE_VALOR: '(?=\\n|$|\\s(?:vCenter|Cluster Name|Target|Previous Status|New Status|Alarm Definition|Description|Descripcion|Recomendacion)\\s*:)',
+
   extraerOrigen: function(description, summary) {
     const origen = { vCenter: 'Desconocido', cluster: 'Desconocido', target: 'Target no encontrado' };
 
-    const vCenterMatch = description.match(/vCenter\s*:?\s*(.*?)(?=\n|$)/i);
+    const vCenterMatch = description.match(new RegExp('vCenter\\s*:?\\s*(.*?)' + this.CORTE_VALOR, 'i'));
     if (vCenterMatch && vCenterMatch[1].trim() !== '') {
       origen.vCenter = vCenterMatch[1].trim();
     }
 
-    const clusterMatch = description.match(/Cluster Name\s*:?\s*(.*?)(?=\n|$)/i);
+    const clusterMatch = description.match(new RegExp('Cluster Name\\s*:?\\s*(.*?)' + this.CORTE_VALOR, 'i'));
     if (clusterMatch && clusterMatch[1].trim() !== '') {
       origen.cluster = clusterMatch[1].trim();
     }
 
-    const targetMatch = description.match(/Target:?\s*(.*?)(?=\s*Previous Status|\n|$)/i);
+    const targetMatch = description.match(new RegExp('Target:?\\s*(.*?)' + this.CORTE_VALOR, 'i'));
     if (targetMatch && targetMatch[1].trim() !== '') {
       origen.target = targetMatch[1].trim();
     } else if (summary) {
