@@ -64,6 +64,27 @@ const Config = {
     'Host has lost connection to vCenter Server'
   ],
 
+  // Cerrar en Jira las alarmas que el motor de Excepciones silencia.
+  // Silenciar siempre significó "no publicarla en el resumen del POD"; con esto además
+  // se transiciona el ticket, para que no quede abierto sin dueño.
+  // Ponelo en false para volver al comportamiento anterior (silenciar sin tocar Jira).
+  // OJO: aplica en TESTING y en PROD por igual, porque el Jira es el mismo en los dos.
+  CERRAR_ALARMAS_SILENCIADAS: true,
+
+  // Cómo ubicar la transición de cierre dentro del workflow de Jira.
+  // Se busca primero por el nombre de la transición y, si no aparece, por el nombre del
+  // estado destino. Tener las dos vías evita que un rename en el workflow rompa el cierre
+  // en silencio. Ver JiraService._elegirTransicionDeCierre.
+  JIRA_TRANSICION_CIERRE: {
+    nombre: 'Cerrar Alarma',
+    estadoDestino: 'Cerrada'
+  },
+
+  // Comentario que se deja en el ticket al cerrarlo, para que quede trazable quién lo cerró
+  // y por qué. `{motivo}` se reemplaza por el detalle de la excepción que lo silenció.
+  // Si el comentario falla, el cierre igual se da por bueno.
+  JIRA_COMENTARIO_CIERRE: 'Cerrada automáticamente por la automatización de alarmas (Apps Script).\n{motivo}',
+
   // ID de la carpeta en Google Drive donde se guardarán los borradores (.json)
   get ID_CARPETA_BORRADORES() {
     if (this.ENTORNO === 'TESTING') {

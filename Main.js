@@ -40,20 +40,42 @@ function _obtenerMensajeFinal() {
   return { exito: true, mensaje: mensajeFinal, alarmasSilenciadas, mensajesProcesados, mappings };
 }
 
+/**
+ * Cierra en Jira las alarmas silenciadas (si está habilitado) y las informa en el canal
+ * de logs de excepciones.
+ *
+ * Nada de lo que pase acá puede tumbar el envío del resumen: una alarma que no se pudo
+ * cerrar sigue estando correctamente silenciada, que es lo que pidió la regla de Excepción.
+ */
+function _procesarAlarmasSilenciadas(alarmasSilenciadas) {
+  if (!alarmasSilenciadas || alarmasSilenciadas.length === 0) return;
+
+  alarmasSilenciadas.forEach(item => {
+    let cierre = null;
+
+    if (Config.CERRAR_ALARMAS_SILENCIADAS) {
+      try {
+        cierre = JiraService.cerrarTicket(item.ticketKey, item.log);
+      } catch (e) {
+        cierre = { cerrado: false, detalle: e.message };
+      }
+      Logger.log(`[${item.ticketKey}] Cierre automático: ${cierre.cerrado ? 'OK (' + cierre.detalle + ')' : 'NO — ' + cierre.detalle}`);
+    }
+
+    try {
+      SlackService.enviarLogExcepcion(item.log, item.ticketKey, cierre);
+    } catch (e) {
+      Logger.log("Error enviando log de excepción: " + e.message);
+    }
+  });
+}
+
 function disparadorPrincipal_conAPI() {
   try {
     const resultado = _obtenerMensajeFinal();
-    
-    // Enviar logs de excepciones independientemente del exito del mensaje principal
-    if (resultado.alarmasSilenciadas && resultado.alarmasSilenciadas.length > 0) {
-      resultado.alarmasSilenciadas.forEach(item => {
-        try {
-          SlackService.enviarLogExcepcion(item.log, item.ticketKey);
-        } catch(e) {
-          Logger.log("Error enviando log de excepción: " + e.message);
-        }
-      });
-    }
+
+    // Se procesan las excepciones independientemente del éxito del mensaje principal
+    _procesarAlarmasSilenciadas(resultado.alarmasSilenciadas);
 
     if (!resultado.exito) {
       Logger.log(resultado.mensaje);
@@ -76,6 +98,8 @@ function disparadorPrincipal_Local() {
     const resultado = _obtenerMensajeFinal();
     const ui = SpreadsheetApp.getUi();
     
+    // Ejecución en seco: se listan las silenciadas pero NO se cierran los tickets ni se
+    // postea en Slack, porque este entrypoint existe justamente para simular sin efectos.
     if (resultado.alarmasSilenciadas && resultado.alarmasSilenciadas.length > 0) {
       Logger.log("--- ALARMAS SILENCIADAS ---");
       resultado.alarmasSilenciadas.forEach(item => Logger.log(`[${item.ticketKey}] ${item.log}`));
@@ -136,12 +160,8 @@ function disparadorGuardia_Manual() {
  */
 function _procesarYEnviarGuardia() {
   const resultado = _obtenerMensajeFinal();
-  
-  if (resultado.alarmasSilenciadas && resultado.alarmasSilenciadas.length > 0) {
-    resultado.alarmasSilenciadas.forEach(item => {
-      try { SlackService.enviarLogExcepcion(item.log, item.ticketKey); } catch(e) {}
-    });
-  }
+
+  _procesarAlarmasSilenciadas(resultado.alarmasSilenciadas);
 
   if (!resultado.exito) {
     Logger.log("Guardia: " + resultado.mensaje);
