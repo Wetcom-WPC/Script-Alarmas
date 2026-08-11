@@ -4,6 +4,12 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y el proyecto se adhiere a [Semantic Versioning](https://semver.org/).
 
+## [10.5.3] - 2026-08-11
+
+### Changed
+- **Nota Interna de Cierre más Escueta:** El comentario pasa a ser una sola línea: `Alarma cerrada automáticamente por excepción: <ID>`. Antes repetía el cliente, la alarma y el host, datos que ya están en el propio ticket.
+- **El ID de la Excepción Viaja como Dato, no como Texto:** `_verificarExcepcion` ahora devuelve `idExcepcion` además del `log`. El cierre usa el ID crudo en lugar de rasparlo del log de Slack, que está escrito con markdown y para otro destinatario. Se eliminó el saneo de asteriscos, que existía sólo por eso.
+
 ## [10.5.2] - 2026-08-11
 
 ### Fixed

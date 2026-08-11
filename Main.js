@@ -55,7 +55,7 @@ function _procesarAlarmasSilenciadas(alarmasSilenciadas) {
 
     if (Config.CERRAR_ALARMAS_SILENCIADAS) {
       try {
-        cierre = JiraService.cerrarTicket(item.ticketKey, item.log);
+        cierre = JiraService.cerrarTicket(item.ticketKey, item.idExcepcion);
       } catch (e) {
         cierre = { cerrado: false, detalle: e.message };
       }

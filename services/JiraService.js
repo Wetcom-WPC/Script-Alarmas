@@ -132,7 +132,7 @@ const JiraService = {
    * llame decida qué informar. Cerrar es un extra sobre el silenciado, no puede tumbar
    * el envío del resumen a Slack.
    */
-  cerrarTicket: function(ticketKey, motivo) {
+  cerrarTicket: function(ticketKey, idExcepcion) {
     if (!ticketKey) return { cerrado: false, detalle: 'el ticket no tiene key' };
 
     let transiciones;
@@ -162,7 +162,7 @@ const JiraService = {
     }
 
     // El comentario es best-effort: el ticket ya quedó cerrado, que es lo que importa.
-    const comentario = this._armarComentarioDeCierre(motivo);
+    const comentario = this._armarComentarioDeCierre(idExcepcion);
     if (comentario) {
       try {
         this.comentarTicketInterno(ticketKey, comentario);
@@ -175,14 +175,15 @@ const JiraService = {
   },
 
   /**
-   * Arma el texto del comentario a partir de la plantilla de Config.
-   * El motivo viene del log de la excepción, que está escrito para Slack: se le quitan
-   * los asteriscos de negrita porque en Jira se verían literales.
+   * Arma el texto de la nota interna a partir de la plantilla de Config.
+   * Recibe el ID de la regla ya limpio, no el log de Slack: por eso no hay que sanear
+   * markdown acá. Si el ID viniera vacío, se deja constancia igual.
    */
-  _armarComentarioDeCierre: function(motivo) {
+  _armarComentarioDeCierre: function(idExcepcion) {
     const plantilla = Config.JIRA_COMENTARIO_CIERRE;
     if (!plantilla) return '';
-    return plantilla.replace('{motivo}', (motivo || '').toString().replace(/\*/g, ''));
+    const id = (idExcepcion || '').toString().trim() || 'sin ID';
+    return plantilla.replace('{idExcepcion}', id);
   },
 
   /**

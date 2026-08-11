@@ -25,7 +25,8 @@ const TRANSICIONES_CERRADA = {
   ]
 };
 
-const MOTIVO = 'Alarma silenciada por Excepción ID: *ID_Ejemplo* | Cliente: Banco Macro | Host: esxi031-lom.macro.com.ar';
+/** Lo que recibe cerrarTicket es el ID crudo de la regla, no el log de Slack. */
+const ID_EXCEPCION = 'ID_Ejemplo';
 
 /**
  * Arma un doble de la API. `opciones.transiciones` define qué devuelve el GET;
@@ -61,7 +62,7 @@ function cerrar(opciones, ticketKey) {
   const JiraService = obtener('JiraService');
   if (!JiraService) throw new Error('No se pudo cargar JiraService en el sandbox.');
 
-  const resultado = JiraService.cerrarTicket(ticketKey || 'SBM-26397', MOTIVO);
+  const resultado = JiraService.cerrarTicket(ticketKey || 'SBM-26397', ID_EXCEPCION);
   return { resultado, llamadas, logs, JiraService };
 }
 
@@ -121,9 +122,10 @@ const CASOS = [
 
       const comentario = llamadas[2];
       if (comentario.url.indexOf('/comment') === -1) return 'no comentó el ticket';
-      const texto = JSON.stringify(JSON.parse(comentario.options.payload).body);
-      if (texto.indexOf('ID_Ejemplo') === -1) return 'el comentario no menciona la excepción que la silenció';
-      if (texto.indexOf('*') !== -1) return 'el comentario arrastró los asteriscos de negrita de Slack';
+
+      const texto = JSON.parse(comentario.options.payload).body;
+      const esperado = 'Alarma cerrada automáticamente por excepción: ID_Ejemplo';
+      if (texto !== esperado) return `texto del comentario inesperado:\n          esperaba: ${esperado}\n          obtuvo:   ${texto}`;
       return null;
     }
   },
@@ -199,7 +201,7 @@ const CASOS = [
     nombre: 'Un ticket sin key no dispara ninguna llamada a Jira',
     correr: () => {
       const { obtener, llamadas } = crearSandboxServicios(apiFalsa({}));
-      const resultado = obtener('JiraService').cerrarTicket(null, MOTIVO);
+      const resultado = obtener('JiraService').cerrarTicket(null, ID_EXCEPCION);
       if (resultado.cerrado) return 'dio por cerrado un ticket sin key';
       if (llamadas.length !== 0) return `no debería llamar a Jira, hubo ${llamadas.length} llamadas`;
       return null;

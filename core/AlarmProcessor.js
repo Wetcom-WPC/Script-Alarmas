@@ -68,7 +68,7 @@ const AlarmProcessor = {
         // Filtrado por reglas de Excepciones dinámicas
         const excepcion = this._verificarExcepcion(pod, cliente, alarmaProcesada, origen, summaryResto, mappings.reglasExcepcion);
         if (excepcion.matcheada) {
-          alarmasSilenciadas.push({ log: excepcion.log, ticketKey: ticket.key });
+          alarmasSilenciadas.push({ log: excepcion.log, ticketKey: ticket.key, idExcepcion: excepcion.idExcepcion });
           return; // La alarma cae dentro de una ventana de mantenimiento o excepción, se omite.
         }
 
@@ -312,6 +312,9 @@ const AlarmProcessor = {
       const etiqueta = origen.etiquetaTarget || 'Target';
       return {
         matcheada: true,
+        // El ID viaja aparte del log: el log está escrito para Slack (con markdown) y el
+        // cierre en Jira necesita el dato limpio, sin tener que rasparlo de un texto.
+        idExcepcion: regla.id,
         log: `Alarma silenciada por Excepción ID: *${regla.id}* | Cliente: ${cliente} | Alarma: ${tipoAlarma} | ${etiqueta}: ${origen.target || 'N/A'}`
       };
     }

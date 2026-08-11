@@ -80,10 +80,10 @@ const Config = {
     estadoDestino: 'Cerrada'
   },
 
-  // Comentario que se deja en el ticket al cerrarlo, para que quede trazable quién lo cerró
-  // y por qué. `{motivo}` se reemplaza por el detalle de la excepción que lo silenció.
+  // Nota interna que se deja en el ticket al cerrarlo, para que quede trazable quién lo cerró
+  // y por qué. `{idExcepcion}` se reemplaza por el ID de la regla que silenció la alarma.
   // Si el comentario falla, el cierre igual se da por bueno.
-  JIRA_COMENTARIO_CIERRE: 'Cerrada automáticamente por la automatización de alarmas (Apps Script).\n{motivo}',
+  JIRA_COMENTARIO_CIERRE: 'Alarma cerrada automáticamente por excepción: {idExcepcion}',
 
   // ID de la carpeta en Google Drive donde se guardarán los borradores (.json)
   get ID_CARPETA_BORRADORES() {
