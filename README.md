@@ -23,12 +23,24 @@ Actúa como la base de datos en RAM.
 * Lee las pestañas **Clientes** y **Tipos de Alarmas** transformándolas en diccionarios para procesamiento O(1).
 
 ### 4. `AlarmParser.js`
-El motor de disección de Strings.
+El motor de disección de Strings del **formato histórico**.
 * Aplica interceptores y expresiones regulares complejas para adivinar nombres de alarmas y extraer "vCenter", "Cluster" y "Target" limpios de los bloques de descripción de Jira.
+* Expone además `resolverNombreAlarma()`, el cruce contra la hoja *Tipos de Alarmas* que comparten **todos** los parsers, para que la resolución del nombre sea idéntica en cualquier formato.
+
+### 4.b `core/parsers/` (Strategy + Chain of Responsibility)
+La capa que permite soportar **varios formatos de alarma a la vez**. Distintos equipos envían las alarmas con estructuras distintas; cada estructura ("dialecto") se resuelve con su propia estrategia.
+
+* **`AlarmParserRegistry.js`** — Le pregunta a cada estrategia si reconoce el ticket y delega en la primera que dice que sí, ordenadas por prioridad. Define el **modelo canónico** que todas devuelven, de modo que el resto del sistema no sabe ni le importa de qué formato vino la alarma.
+* **`LegacyVCenterParser.js`** — Envuelve a `AlarmParser` sin modificarlo. Tiene prioridad `0` y acepta cualquier ticket: es el **fallback universal**, garantía de que lo que no se reconoce se comporta exactamente como siempre.
+* **`VropsStandardParser.js`** — Formato estandarizado nuevo (vROps / Aria Operations), con descripciones estructuradas `Etiqueta: valor`.
+* **`VropsCategorias.js`** — Catálogo **declarativo** de las Categorías del formato nuevo (`Host`, `vSAN Cluster`, `Capacity Disk`...). Agregar una categoría es agregar una entrada al array, sin escribir lógica.
+
+> El ruteo entre parsers se decide por la **estructura de la descripción**, nunca por el prefijo del summary. Así, si el equipo emisor cambia sus prefijos, el ruteo no se rompe.
 
 ### 5. `AlarmProcessor.js`
 El orquestador de reglas de negocio.
-* Agrupa las alarmas validadas. Delega el parseo a `AlarmParser` y delega el formateo lógico a las estrategias de `AlarmFormatters`. Implementa heurísticas por prefijo para deducir si un Target es un `Host`, un `Cluster` o un `Datastore`.
+* Agrupa las alarmas validadas. Delega el parseo al `AlarmParserRegistry` y, sólo para el formato histórico, el formateo lógico a las estrategias de `AlarmFormatters`.
+* Concentra las **políticas transversales** a todos los dialectos: `_debeExcluirse()` (tipos ignorados por diseño y falsos positivos) e `_inferirEtiquetaTarget()` (heurística por prefijo para deducir si un Target es `Host`, `Cluster` o `Datastore`).
 
 ### 6. `AlarmFormatters.js` (Strategy Pattern)
 * Encapsula las **Reglas Específicas** de limpieza para cada tipo de alerta. Devuelve objetos JSON inyectando `targetLabel` inteligente para que el procesador sepa con qué tipo de recurso está lidiando.
