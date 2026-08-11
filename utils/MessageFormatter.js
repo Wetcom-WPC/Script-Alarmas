@@ -72,12 +72,11 @@ const MessageFormatter = {
         }
       }
 
-      if (pod === "WPC") {
-        mensaje += `Ante esto les consulto, ¿están al tanto de las anomalías? ¿Desean que generemos un ticket para analizar la anomalía en profundidad?\n`;
-        mensaje += `Aguardamos sus comentarios.\nSaludos cordiales.\n\n`;
-      } else {
-        mensaje += `Ante esto, les consulto, ¿están al tanto de la/s anomalía/s? ¿desean que le informemos al cliente?\n\n`;
-      }
+      // El cierre es el mismo para todos los PODs, WPC incluido. La variante propia que
+      // tenía WPC ("¿Desean que generemos un ticket...? Aguardamos sus comentarios.")
+      // era el texto que se le escribe AL CLIENTE, no el que se le pregunta al POD.
+      // Ese texto sigue vivo donde corresponde: en el borrador de correo (WebApp.js).
+      mensaje += `Ante esto, les consulto, ¿están al tanto de la/s anomalía/s? ¿desean que le informemos al cliente?\n\n`;
 
       if (enlacesBorradores.length > 0) {
         mensaje += enlacesBorradores.join('\n') + '\n\n\n\n';

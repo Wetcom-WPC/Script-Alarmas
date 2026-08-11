@@ -4,6 +4,11 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y el proyecto se adhiere a [Semantic Versioning](https://semver.org/).
 
+## [10.6.1] - 2026-08-11
+
+### Changed
+- **Cierre Unificado del Mensaje de Slack (hot-fix):** WPC tenía su propia variante del párrafo final (*"¿Desean que generemos un ticket para analizar la anomalía en profundidad? Aguardamos sus comentarios. Saludos cordiales."*). Ese texto está redactado para el **cliente**, no para el POD, así que en el canal interno preguntaba lo que no correspondía. Todos los PODs usan ahora el mismo cierre: *"Ante esto, les consulto, ¿están al tanto de la/s anomalía/s? ¿desean que le informemos al cliente?"*. La mención `@wpc` no se toca. El texto orientado al cliente sigue vivo donde sí corresponde: en el borrador de correo que arma `WebApp.js`.
+
 ## [10.6.0] - 2026-08-11
 
 ### Fixed
