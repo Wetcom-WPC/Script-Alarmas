@@ -81,7 +81,7 @@ function disparadorPrincipal_conAPI() {
       Logger.log(resultado.mensaje);
       return;
     }
-    
+
     // 5. Envía el resultado a Slack
     SlackService.enviarNotificacion(resultado.mensaje);
     Logger.log("Ejecución finalizada con éxito. Mensaje generado:\n" + resultado.mensaje);

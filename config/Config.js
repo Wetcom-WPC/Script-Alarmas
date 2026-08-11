@@ -55,7 +55,7 @@ const Config = {
   JIRA_BASE_URL: "wetcom.atlassian.net",
   JIRA_FILTER_ID: "23855",
   JIRA_POD_FIELD_ID: "customfield_12331", // Extraído al archivo de Configuración
-  
+
   // Nombres de hojas de cálculo
   SHEET_CLIENTES: 'Clientes',
   SHEET_TIPOS_ALARMAS: 'Tipos de Alarmas',
