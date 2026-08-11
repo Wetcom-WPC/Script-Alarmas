@@ -117,10 +117,6 @@ const MessageFormatter = {
     let detalle = "";
     for (const alarma in alarmas) {
       const entradasTarget = alarmas[alarma];
-      const todasLasEntradas = Object.values(entradasTarget).flat();
-      const mensajeFecha = this._crearMensajeFecha(todasLasEntradas);
-
-      detalle += `• *${alarma}* _(${mensajeFecha})_\n`;
 
       // Agrupar por vCenter + Cluster + Summaries idénticos
       let groupByCombination = {};
@@ -132,7 +128,7 @@ const MessageFormatter = {
         } catch(e) {
            origen = { vCenter: 'Desconocido', cluster: 'Desconocido', target: targetStr };
         }
-        
+
         let summariesSet = new Set();
         entradasTarget[targetStr].forEach(entry => {
           if (entry.summaryResto !== null && entry.summaryResto !== 'N/A' && typeof entry.summaryResto === 'string') {
@@ -143,6 +139,7 @@ const MessageFormatter = {
 
         const sortedSummaries = Array.from(summariesSet).sort();
         const claveGrupo = JSON.stringify({
+          cobertura: origen.cobertura || '',
           vCenter: origen.vCenter,
           cluster: origen.cluster,
           etiquetaTarget: origen.etiquetaTarget || 'Host/Target',
@@ -151,20 +148,35 @@ const MessageFormatter = {
 
         if (!groupByCombination[claveGrupo]) {
           groupByCombination[claveGrupo] = {
+            cobertura: origen.cobertura || '',
             vCenter: origen.vCenter,
             cluster: origen.cluster,
             etiquetaTarget: origen.etiquetaTarget || 'Host/Target',
             summaries: sortedSummaries,
-            targets: []
+            targets: [],
+            entries: []
           };
         }
 
         groupByCombination[claveGrupo].targets.push(origen.target);
+        groupByCombination[claveGrupo].entries.push(...entradasTarget[targetStr]);
       }
 
-      for (const key in groupByCombination) {
-        const group = groupByCombination[key];
-        
+      // Una misma alarma puede llegar bajo coberturas distintas (9x5 y 24x7). Se emite un
+      // bloque por cobertura, con su propio título y su propia fecha, porque son contratos
+      // distintos y el POD necesita distinguirlos de un vistazo.
+      const bloques = this._agruparPorCobertura(groupByCombination);
+
+      for (let b = 0; b < bloques.length; b++) {
+        const bloque = bloques[b];
+        const mensajeFecha = this._crearMensajeFecha(bloque.entries);
+
+        if (bloque.cobertura && Config.MOSTRAR_ROTULO_COBERTURA) detalle += `${bloque.cobertura}\n`;
+        detalle += `• *${alarma}* _(${mensajeFecha})_\n`;
+
+      for (const key in bloque.grupos) {
+        const group = bloque.grupos[key];
+
         if (group.vCenter && !group.vCenter.toLowerCase().includes('desconocido')) {
           detalle += `    • *vCenter:* ${group.vCenter}\n`;
         }
@@ -198,9 +210,35 @@ const MessageFormatter = {
           });
         }
       }
-      detalle += `\n`;
+        detalle += `\n`;
+      }
     }
     return detalle;
+  },
+
+  /**
+   * Parte los grupos de una alarma en bloques por cobertura contratada (9x5 / 24x7).
+   * Las alarmas del formato histórico no traen cobertura: caen en un único bloque sin
+   * rótulo, así que su salida no cambia.
+   */
+  _agruparPorCobertura: function(groupByCombination) {
+    const porCobertura = {};
+    const orden = [];
+
+    for (const key in groupByCombination) {
+      const group = groupByCombination[key];
+      const cobertura = group.cobertura || '';
+
+      if (!porCobertura[cobertura]) {
+        porCobertura[cobertura] = { cobertura: cobertura, grupos: {}, entries: [] };
+        orden.push(cobertura);
+      }
+
+      porCobertura[cobertura].grupos[key] = group;
+      porCobertura[cobertura].entries.push(...group.entries);
+    }
+
+    return orden.map(c => porCobertura[c]);
   },
 
   _crearMensajeFecha: function(entries) {
@@ -264,6 +302,7 @@ const MessageFormatter = {
 
         const sortedSummaries = Array.from(summariesSet).sort();
         const claveGrupo = JSON.stringify({
+          cobertura: origen.cobertura || '',
           vCenter: origen.vCenter,
           cluster: origen.cluster,
           etiquetaTarget: origen.etiquetaTarget || 'Host/Target',
@@ -272,6 +311,7 @@ const MessageFormatter = {
 
         if (!groupByCombination[claveGrupo]) {
           groupByCombination[claveGrupo] = {
+            cobertura: origen.cobertura || '',
             vCenter: origen.vCenter,
             cluster: origen.cluster,
             etiquetaTarget: origen.etiquetaTarget || 'Host/Target',
@@ -293,6 +333,16 @@ const MessageFormatter = {
                                          .map(t => this._escapeHTML(t))
                                          .join('<br>') || 'N/A';
         
+        let coberturaHtml = '';
+        if (group.cobertura && Config.MOSTRAR_ROTULO_COBERTURA) {
+          coberturaHtml = `
+            <tr style="border-bottom: 1px solid #e0e0e0;">
+              <td style="padding: 12px 15px; font-weight: bold; color: #555; background-color: #f9f9f9; text-transform: uppercase;">COBERTURA</td>
+              <td style="padding: 12px 15px; color: #666;">${this._escapeHTML(group.cobertura)}</td>
+            </tr>
+          `;
+        }
+
         let vcenterHtml = '';
         if (group.vCenter && !group.vCenter.toLowerCase().includes('desconocido')) {
           vcenterHtml += `
@@ -337,6 +387,7 @@ const MessageFormatter = {
               <td style="padding: 12px 15px; width: 20%; font-weight: bold; color: #555; background-color: #f0f7f4; text-transform: uppercase;">ALARMA</td>
               <td style="padding: 12px 15px; width: 80%; color: #222;"><b>${this._escapeHTML(alarma)}</b></td>
             </tr>
+            ${coberturaHtml}
             <tr style="border-bottom: 1px solid #e0e0e0;">
               <td style="padding: 12px 15px; font-weight: bold; color: #555; background-color: #f9f9f9; text-transform: uppercase;">FECHA</td>
               <td style="padding: 12px 15px; color: #666;">${mensajeFecha.replace('El día ', '').replace('Desde el día ', 'Desde el ')}</td>
