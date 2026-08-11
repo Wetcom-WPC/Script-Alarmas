@@ -68,4 +68,56 @@ function crearSandbox() {
   return { contexto, logs, obtener };
 }
 
-module.exports = { crearSandbox, MODULOS };
+/**
+ * Sandbox aparte para la capa de servicios (los que sí salen a la red).
+ *
+ * No se mezcla con `crearSandbox()` a propósito: allá UrlFetchApp está prohibido y esa
+ * regla es la que mantiene el parseo testeable. Acá, en cambio, la red es justamente lo
+ * que queremos observar, así que se reemplaza por un doble que registra cada llamada y
+ * devuelve las respuestas que le indique el test.
+ *
+ * @param {Function} responder - recibe (url, options) y devuelve { code, body }.
+ */
+function crearSandboxServicios(responder) {
+  const logs = [];
+  const llamadas = [];
+
+  const sandbox = {
+    Logger: { log: (msg) => logs.push(String(msg)) },
+    console,
+    PropertiesService: {
+      getScriptProperties: () => ({ getProperty: (clave) => `valor-falso-${clave}` })
+    },
+    UrlFetchApp: {
+      fetch: (url, options) => {
+        llamadas.push({ url, options });
+        const { code, body } = responder(url, options) || {};
+        return {
+          getResponseCode: () => (code === undefined ? 200 : code),
+          getContentText: () => (body === undefined ? '{}' : body)
+        };
+      }
+    },
+    SpreadsheetApp: new Proxy({}, { get() { throw new Error('SpreadsheetApp no debe usarse en la capa de servicios'); } }),
+    DriveApp: new Proxy({}, { get() { throw new Error('DriveApp no debe usarse en la capa de servicios'); } })
+  };
+  sandbox.globalThis = sandbox;
+
+  const contexto = vm.createContext(sandbox);
+
+  ['config/Config.js', 'services/JiraService.js'].forEach(rel => {
+    const abs = path.join(RAIZ, rel);
+    const codigo = fs.readFileSync(abs, 'utf8');
+    try {
+      vm.runInContext(codigo, contexto, { filename: rel });
+    } catch (e) {
+      throw new Error(`Error cargando ${rel}: ${e.message}`);
+    }
+  });
+
+  const obtener = (nombre) => vm.runInContext(`typeof ${nombre} !== 'undefined' ? ${nombre} : undefined`, contexto);
+
+  return { contexto, logs, llamadas, obtener };
+}
+
+module.exports = { crearSandbox, crearSandboxServicios, MODULOS };
