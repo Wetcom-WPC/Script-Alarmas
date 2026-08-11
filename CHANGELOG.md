@@ -4,6 +4,20 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y el proyecto se adhiere a [Semantic Versioning](https://semver.org/).
 
+## [10.5.0] - 2026-08-11
+
+### Added
+- **Cierre Automático de Alarmas Silenciadas:** Hasta ahora "silenciar" significaba únicamente omitir la alarma del resumen del POD: el ticket quedaba abierto en Jira sin dueño. Ahora, cuando una alarma matchea una regla de Excepciones, además se transiciona a *Cerrada* y se le deja un comentario con el ID de la excepción que la silenció, para que quede trazable quién la cerró y por qué. Se controla con `Config.CERRAR_ALARMAS_SILENCIADAS`.
+- **Selección de Transición por Workflow, no por ID:** El cierre no hardcodea el ID de la transición. Se listan las transiciones que el workflow ofrece para el ticket y se elige por nombre (`Cerrar Alarma`) o, si lo renombraron, por el nombre del estado destino (`Cerrada`); ambos configurables en `Config.JIRA_TRANSICION_CIERRE`. Esto permite que proyectos distintos (SBM, SBDER, …) con workflows distintos funcionen sin tocar código, y evita el riesgo de aplicar por ID una transición equivocada.
+- **`JiraService.obtenerTransiciones()` y `JiraService.comentarTicket()`:** Primeras operaciones de escritura del proyecto contra Jira. El comentario se envía en formato ADF, como exige la API v3.
+- **Tests del Cierre (`test/cierreJira.test.js`):** 9 casos sobre un doble de `UrlFetchApp` que verifican qué se llama, con qué payload y qué se hace ante cada respuesta de Jira. Se agregó `crearSandboxServicios()` al harness, separado del sandbox de parseo (donde la red sigue estando prohibida a propósito).
+
+### Changed
+- **Tolerancia a Fallos en el Cierre:** Ningún error de Jira puede interrumpir el envío del resumen a Slack. `cerrarTicket()` nunca lanza por un rechazo de la API: devuelve `{ cerrado, detalle }` y el resultado se informa como una línea extra en el log de excepciones del canal de Slack (✅ cerrado / ⚠️ con el motivo del fallo). Una alarma que no se pudo cerrar sigue estando correctamente silenciada.
+- **El comentario es *best-effort*:** si el ticket se cerró pero el comentario falla, el cierre se da por bueno y el fallo queda en los logs. Cerrar es lo que importa.
+- **Un ticket ya cerrado no se reintenta:** Jira sencillamente no ofrece la transición de cierre, y ese caso se distingue de un error real (el detalle lista las transiciones que sí estaban disponibles).
+- **`Main.js` Desduplicado:** Los dos bloques idénticos que recorrían `alarmasSilenciadas` (el del disparador principal y el de la guardia) se unificaron en `_procesarAlarmasSilenciadas()`. `disparadorPrincipal_Local` queda deliberadamente afuera: es una simulación y no debe cerrar tickets ni postear en Slack.
+
 ## [10.4.0] - 2026-08-10
 
 ### Added
