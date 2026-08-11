@@ -1,0 +1,6 @@
+# Configuración local de agentes de IA (no forma parte del proyecto)
+.agents/
+
+# Dependencias de npm. El proyecto no usa ninguna, pero package.json existe para
+# los scripts de test y un `npm install` accidental crearía esta carpeta.
+node_modules/
