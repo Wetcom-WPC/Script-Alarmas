@@ -25,8 +25,19 @@ const AlarmProcessor = {
 
         let pod = ticket.pod;
         if (!pod || pod === 'POD Desconocido') {
-          warnings.push(`POD no encontrado para el ticket "${ticket.key}" en el custom field de Jira`);
-          pod = 'POD Desconocido';
+          // Sin POD ninguna regla de Excepciones puede matchear (las reglas viven en hojas
+          // por POD), así que la alarma quedaría imposible de silenciar. La hoja Clientes ya
+          // declara a qué POD pertenece cada proyecto, así que se usa como respaldo cuando
+          // Jira no trae el custom field: tickets cargados a mano, proyectos de prueba o
+          // automatizaciones que no lo setean.
+          const podDePlanilla = this._obtenerPodDePlanilla(ticket.key, mappings.mapaPodsClientes);
+          if (podDePlanilla) {
+            pod = podDePlanilla;
+            warnings.push(`POD tomado de la hoja Clientes ("${pod}"): el ticket "${ticket.key}" no lo trae en el custom field de Jira`);
+          } else {
+            warnings.push(`POD no encontrado para el ticket "${ticket.key}" en el custom field de Jira`);
+            pod = 'POD Desconocido';
+          }
         }
 
         // El registry elige el parser según el dialecto del ticket y devuelve
@@ -158,6 +169,16 @@ const AlarmProcessor = {
   _obtenerClaveCliente: function(key, mapaClientes) {
     const codigoCliente = key.split('-')[0];
     return mapaClientes[codigoCliente] || `No encontrado (${codigoCliente})`;
+  },
+
+  /**
+   * POD declarado en la hoja Clientes para el proyecto de Jira del ticket (Ej: WST → WPC).
+   * Devuelve null si la planilla no lo declara, para que quien llame decida el fallback.
+   */
+  _obtenerPodDePlanilla: function(key, mapaPodsClientes) {
+    if (!mapaPodsClientes) return null;
+    const codigoCliente = key.split('-')[0];
+    return mapaPodsClientes[codigoCliente] || null;
   },
 
   /**

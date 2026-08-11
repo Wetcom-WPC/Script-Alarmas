@@ -4,6 +4,12 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y el proyecto se adhiere a [Semantic Versioning](https://semver.org/).
 
+## [10.5.2] - 2026-08-11
+
+### Fixed
+- **Alarmas sin POD Imposibles de Silenciar:** Las reglas de Excepciones viven en hojas por POD (`Excepciones WPC`, `Excepciones POD 1`, …) y lo primero que validan es que el POD del ticket coincida con el de la hoja. Si Jira no traía el POD en el custom field, el ticket quedaba como `POD Desconocido` y **ninguna** regla podía matchearlo: la alarma era imposible de silenciar por más que la excepción estuviera bien cargada. Ahora, cuando falta el custom field, el POD se toma de la columna **POD de la hoja Clientes**, que ya declaraba ese dato (lo usaba `actualizarDropdownsClientes` para armar los dropdowns) pero se descartaba al construir los mapeos. Si Jira sí trae el POD, manda Jira: el respaldo nunca lo pisa.
+- **`DataRepository.mapaPodsClientes`:** Nuevo mapeo código de proyecto → POD (Columna A → Columna C de la hoja Clientes).
+
 ## [10.5.1] - 2026-08-11
 
 ### Fixed

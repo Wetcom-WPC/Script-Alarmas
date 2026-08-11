@@ -33,8 +33,11 @@ const DataRepository = {
       }
     });
 
+    const datosClientes = sheetClientes.getDataRange().getValues();
+
     return {
-      mapaClientes: this._createMap(sheetClientes.getDataRange().getValues()),
+      mapaClientes: this._createMap(datosClientes),
+      mapaPodsClientes: this._crearMapaPods(datosClientes),
       mapaAlarmas: this._createMap(sheetTiposAlarmas.getDataRange().getValues()),
       mapaCorreos: this._parseCorreosEntorno(correosData),
       mapaCorreosPods: this._parseCorreosEntorno(correosPodsData),
@@ -47,6 +50,22 @@ const DataRepository = {
     return dataArray.slice(1).reduce((map, row) => {
       if (row[0] && row[1]) {
         map[row[0].toString().trim()] = row[1].toString().trim();
+      }
+      return map;
+    }, {});
+  },
+
+  /**
+   * Mapea el código de proyecto de Jira (Columna A) al POD que lo atiende (Columna C).
+   *
+   * La hoja Clientes ya declaraba ese dato —lo usa `actualizarDropdownsClientes` para armar
+   * los dropdowns— pero se descartaba al armar los mapeos. Se usa como respaldo cuando el
+   * ticket no trae el POD en el custom field de Jira. Ver AlarmProcessor.procesarAlarmas.
+   */
+  _crearMapaPods: function(dataArray) {
+    return dataArray.slice(1).reduce((map, row) => {
+      if (row[0] && row[2]) {
+        map[row[0].toString().trim()] = row[2].toString().trim();
       }
       return map;
     }, {});

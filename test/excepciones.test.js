@@ -22,6 +22,28 @@ const regla = (over) => Object.assign({
   validaHasta: null
 }, over);
 
+/**
+ * Reproduce WST-180: una alarma cargada en el proyecto de testing, que NO trae el POD en el
+ * custom field de Jira. Sin POD ninguna regla de una hoja "Excepciones <POD>" puede matchear,
+ * y la alarma queda imposible de silenciar. El respaldo es la columna POD de la hoja Clientes.
+ */
+const TICKET_SIN_POD = {
+  id: 'wst-sin-pod',
+  key: 'WST-180',
+  pod: null,
+  created: new Date('2026-08-11T15:07:00Z'),
+  summary: '9x5 - vCenter - alarm.HostConnectivityAlarm',
+  description: 'vCenter: vcsa65.balanzcapital.net.ar\nTarget: esxi15.balanzcapital.net.ar\n' +
+               'Previous Status: Unset\nNew Status: Unset ' +
+               'Description: Host esxi15.balanzcapital.net.ar in BALANZ is not responding'
+};
+
+/** La hoja Clientes declara que el proyecto WST lo atiende el POD WPC. */
+const PLANILLA_CON_POD = {
+  mapaClientes: Object.assign({}, mappings.mapaClientes, { WST: 'Cliente de Prueba' }),
+  mapaPodsClientes: { WST: 'WPC' }
+};
+
 const CASOS = [
   {
     nombre: 'vROps Host: silencia por campo Host',
@@ -76,6 +98,26 @@ const CASOS = [
     fixture: 'legacy-host-not-responding',
     regla: regla({ campo: 'Host', condicion: 'Contiene', valor: 'esx01-prod' }),
     silenciada: true
+  },
+  {
+    nombre: 'Sin POD en Jira: la hoja Clientes lo resuelve y la regla del POD silencia',
+    ticket: TICKET_SIN_POD,
+    mappingsExtra: PLANILLA_CON_POD,
+    regla: regla({ pod: 'WPC', campo: 'Host', condicion: 'Igual a', valor: 'esxi15.balanzcapital.net.ar' }),
+    silenciada: true
+  },
+  {
+    nombre: 'Sin POD en Jira y sin respaldo en la planilla: la regla del POD no aplica',
+    ticket: TICKET_SIN_POD,
+    regla: regla({ pod: 'WPC', campo: 'Host', condicion: 'Igual a', valor: 'esxi15.balanzcapital.net.ar' }),
+    silenciada: false
+  },
+  {
+    nombre: 'El POD de la planilla no pisa al que sí viene en el custom field de Jira',
+    ticket: Object.assign({}, TICKET_SIN_POD, { pod: 'Operations' }),
+    mappingsExtra: PLANILLA_CON_POD,
+    regla: regla({ pod: 'WPC', campo: 'Host', condicion: 'Igual a', valor: 'esxi15.balanzcapital.net.ar' }),
+    silenciada: false
   }
 ];
 
@@ -83,10 +125,10 @@ function correr(AlarmProcessor) {
   let fallos = 0;
 
   CASOS.forEach(caso => {
-    const fixture = porId[caso.fixture];
+    const fixture = caso.ticket || porId[caso.fixture];
     if (!fixture) throw new Error(`Fixture inexistente: ${caso.fixture}`);
 
-    const mappingsConRegla = Object.assign({}, mappings, { reglasExcepcion: [caso.regla] });
+    const mappingsConRegla = Object.assign({}, mappings, caso.mappingsExtra || {}, { reglasExcepcion: [caso.regla] });
     const { alarmasSilenciadas } = AlarmProcessor.procesarAlarmas([aTicket(fixture)], mappingsConRegla);
     const fueSilenciada = alarmasSilenciadas.length > 0;
 
