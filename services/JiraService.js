@@ -165,7 +165,7 @@ const JiraService = {
     const comentario = this._armarComentarioDeCierre(motivo);
     if (comentario) {
       try {
-        this.comentarTicket(ticketKey, comentario);
+        this.comentarTicketInterno(ticketKey, comentario);
       } catch (e) {
         Logger.log(`No se pudo comentar ${ticketKey} tras cerrarlo: ${e.message}`);
       }
@@ -186,31 +186,116 @@ const JiraService = {
   },
 
   /**
-   * Agrega un comentario en texto plano a un ticket.
-   * La API v3 espera el cuerpo en formato ADF, no un string suelto.
+   * Agrega una NOTA INTERNA en un ticket.
+   *
+   * Crítico: estos tickets viven en Jira Service Management y el cliente ve el portal.
+   * Un comentario público le expondría el detalle interno de por qué silenciamos su alarma.
+   * Por eso acá NO existe la opción de comentar en público: si no se puede garantizar que
+   * la nota quede interna, no se comenta nada y se lanza el error.
+   *
+   * Vía principal: la API de Service Desk, que tiene un campo `public` explícito y lo
+   * devuelve en la respuesta, así que el resultado se verifica en lugar de asumirse.
+   * Vía de respaldo: la API v3 marcando la propiedad `sd.public.comment` como interna,
+   * por si el proyecto no fuese un service desk.
    */
-  comentarTicket: function(ticketKey, texto) {
+  comentarTicketInterno: function(ticketKey, texto) {
+    const viaServiceDesk = this._comentarViaServiceDesk(ticketKey, texto);
+    if (viaServiceDesk.ok) return;
+
+    // Si Jira llegó a crear el comentario (aunque haya salido público) no se reintenta:
+    // un segundo intento dejaría dos comentarios y no borraría el que ya está publicado.
+    if (viaServiceDesk.reintentar === false) {
+      throw new Error(`Nota interna comprometida en ${ticketKey}: ${viaServiceDesk.detalle}`);
+    }
+
+    Logger.log(`Nota interna vía Service Desk falló en ${ticketKey} (${viaServiceDesk.detalle}). Reintentando por la API v3.`);
+
+    const viaApiV3 = this._comentarInternoViaApiV3(ticketKey, texto);
+    if (viaApiV3.ok) return;
+
+    throw new Error(
+      `No se pudo dejar la nota interna en ${ticketKey}. ` +
+      `Service Desk: ${viaServiceDesk.detalle} | API v3: ${viaApiV3.detalle}. ` +
+      `No se comentó nada para no exponer el detalle al cliente.`
+    );
+  },
+
+  /**
+   * Comenta usando la API de Service Desk, que expone `public` como campo de primer orden.
+   * No alcanza con un 2xx: se confirma contra la respuesta que el comentario quedó privado.
+   */
+  _comentarViaServiceDesk: function(ticketKey, texto) {
+    const url = `https://${Config.JIRA_BASE_URL}/rest/servicedeskapi/request/${encodeURIComponent(ticketKey)}/comment`;
+
+    const response = UrlFetchApp.fetch(url, {
+      "method": "post",
+      "headers": this._encabezados(),
+      "payload": JSON.stringify({ body: texto, public: false }),
+      "muteHttpExceptions": true
+    });
+
+    const responseCode = response.getResponseCode();
+    const responseText = response.getContentText();
+
+    if (responseCode < 200 || responseCode >= 300) {
+      return { ok: false, detalle: `HTTP ${responseCode}: ${responseText}` };
+    }
+
+    let creado;
+    try {
+      creado = JSON.parse(responseText);
+    } catch (e) {
+      return { ok: false, reintentar: false, detalle: `respuesta ilegible, no se puede confirmar que sea interna: ${responseText}` };
+    }
+
+    if (creado.public !== false) {
+      return { ok: false, reintentar: false, detalle: `Jira lo creó como PÚBLICO (comentario ${creado.id}); hay que borrarlo a mano` };
+    }
+
+    return { ok: true };
+  },
+
+  /**
+   * Respaldo por la API v3. El cuerpo va en formato ADF (no un string suelto) y la
+   * privacidad se marca con la propiedad `sd.public.comment`, que es como Service Management
+   * distingue una nota interna de una respuesta al cliente.
+   */
+  _comentarInternoViaApiV3: function(ticketKey, texto) {
     const url = `https://${Config.JIRA_BASE_URL}/rest/api/3/issue/${encodeURIComponent(ticketKey)}/comment`;
 
-    const cuerpo = {
-      type: 'doc',
-      version: 1,
-      content: texto.split('\n').map(linea => ({
-        type: 'paragraph',
-        content: linea ? [{ type: 'text', text: linea }] : []
-      }))
+    const payload = {
+      body: this._aDocumentoADF(texto),
+      properties: [
+        { key: 'sd.public.comment', value: { internal: true } }
+      ]
     };
 
     const response = UrlFetchApp.fetch(url, {
       "method": "post",
       "headers": this._encabezados(),
-      "payload": JSON.stringify({ body: cuerpo }),
+      "payload": JSON.stringify(payload),
       "muteHttpExceptions": true
     });
 
     const responseCode = response.getResponseCode();
     if (responseCode < 200 || responseCode >= 300) {
-      throw new Error(`Jira devolvió ${responseCode} al comentar ${ticketKey}. Respuesta: ${response.getContentText()}`);
+      return { ok: false, detalle: `HTTP ${responseCode}: ${response.getContentText()}` };
     }
+
+    return { ok: true };
+  },
+
+  /**
+   * Envuelve texto plano multilínea en un documento ADF, un párrafo por línea.
+   */
+  _aDocumentoADF: function(texto) {
+    return {
+      type: 'doc',
+      version: 1,
+      content: (texto || '').split('\n').map(linea => ({
+        type: 'paragraph',
+        content: linea ? [{ type: 'text', text: linea }] : []
+      }))
+    };
   }
 };

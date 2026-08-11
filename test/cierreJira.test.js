@@ -29,7 +29,9 @@ const MOTIVO = 'Alarma silenciada por Excepción ID: *ID_Ejemplo* | Cliente: Ban
 
 /**
  * Arma un doble de la API. `opciones.transiciones` define qué devuelve el GET;
- * `opciones.codigoCierre` y `opciones.codigoComentario`, cómo responde cada POST.
+ * `opciones.codigoCierre`, `opciones.codigoServiceDesk` y `opciones.codigoComentarioV3`,
+ * cómo responde cada POST. `opciones.comentarioSaleImagenPublica` simula el peor caso:
+ * Service Desk acepta la llamada pero crea el comentario como público.
  */
 function apiFalsa(opciones) {
   const o = opciones || {};
@@ -42,8 +44,12 @@ function apiFalsa(opciones) {
     if (url.indexOf('/transitions') !== -1 && metodo === 'post') {
       return { code: o.codigoCierre || 204, body: '' };
     }
+    if (url.indexOf('/servicedeskapi/') !== -1) {
+      const publico = !!o.comentarioSaleComoPublico;
+      return { code: o.codigoServiceDesk || 201, body: JSON.stringify({ id: '10500', public: publico }) };
+    }
     if (url.indexOf('/comment') !== -1) {
-      return { code: o.codigoComentario || 201, body: '{}' };
+      return { code: o.codigoComentarioV3 || 201, body: '{}' };
     }
     throw new Error(`El test no esperaba una llamada a ${metodo.toUpperCase()} ${url}`);
   };
@@ -122,6 +128,45 @@ const CASOS = [
     }
   },
   {
+    nombre: 'El comentario se crea como NOTA INTERNA, nunca visible para el cliente',
+    correr: () => {
+      const { llamadas } = cerrar({});
+      const comentario = llamadas[2];
+      if (comentario.url.indexOf('/rest/servicedeskapi/request/SBM-26397/comment') === -1) {
+        return `debería comentar por la API de Service Desk, fue a: ${comentario.url}`;
+      }
+      const payload = JSON.parse(comentario.options.payload);
+      if (payload.public !== false) return `el comentario no se marcó como privado: public=${payload.public}`;
+      return null;
+    }
+  },
+  {
+    nombre: 'Si Service Desk no está disponible, el respaldo por API v3 también va interno',
+    correr: () => {
+      const { resultado, llamadas } = cerrar({ codigoServiceDesk: 404 });
+      if (!resultado.cerrado) return `no cerró: ${resultado.detalle}`;
+      if (llamadas.length !== 4) return `esperaba GET + cierre + Service Desk + respaldo, hubo ${llamadas.length}`;
+
+      const respaldo = llamadas[3];
+      if (respaldo.url.indexOf('/rest/api/3/issue/SBM-26397/comment') === -1) return `URL de respaldo inesperada: ${respaldo.url}`;
+      const props = JSON.parse(respaldo.options.payload).properties || [];
+      const interna = props.filter(p => p.key === 'sd.public.comment')[0];
+      if (!interna || interna.value.internal !== true) return 'el respaldo no marcó el comentario como interno';
+      return null;
+    }
+  },
+  {
+    nombre: 'Si Jira crea el comentario como público, se avisa y NO se comenta de nuevo',
+    correr: () => {
+      const { resultado, llamadas, logs } = cerrar({ comentarioSaleComoPublico: true });
+      // El ticket igual quedó cerrado; lo que no puede pasar es un segundo comentario.
+      if (!resultado.cerrado) return 'el problema del comentario no debería invalidar el cierre';
+      if (llamadas.length !== 3) return `no debería reintentar el comentario, hubo ${llamadas.length} llamadas`;
+      if (!logs.some(l => l.indexOf('PÚBLICO') !== -1)) return 'debería quedar logueado que salió público';
+      return null;
+    }
+  },
+  {
     nombre: 'Si Jira rechaza el cierre, se informa y no se comenta el ticket',
     correr: () => {
       const { resultado, llamadas } = cerrar({ codigoCierre: 403 });
@@ -132,9 +177,9 @@ const CASOS = [
     }
   },
   {
-    nombre: 'Si falla el comentario, el cierre sigue valiendo',
+    nombre: 'Si fallan las dos vías del comentario, el cierre sigue valiendo',
     correr: () => {
-      const { resultado, logs } = cerrar({ codigoComentario: 400 });
+      const { resultado, logs } = cerrar({ codigoServiceDesk: 500, codigoComentarioV3: 400 });
       if (!resultado.cerrado) return 'un comentario fallido invalidó el cierre';
       if (!logs.some(l => l.indexOf('No se pudo comentar') !== -1)) return 'el fallo del comentario debería quedar logueado';
       return null;

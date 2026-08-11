@@ -4,6 +4,14 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y el proyecto se adhiere a [Semantic Versioning](https://semver.org/).
 
+## [10.5.1] - 2026-08-11
+
+### Fixed
+- **El Comentario de Cierre era Visible para el Cliente:** Los tickets viven en Jira Service Management y el cliente ve el portal, por lo que el comentario que dejaba el cierre automático se publicaba como *respuesta al cliente*, exponiéndole el detalle interno de por qué silenciamos su alarma. Ahora se crea siempre como **nota interna**.
+  - La vía principal es la API de Service Desk, que expone `public` como campo de primer orden y lo devuelve en la respuesta: no alcanza con un `2xx`, se **verifica** contra lo que Jira contestó que el comentario quedó privado.
+  - Como respaldo (por si el proyecto no fuera un service desk) se usa la API v3 marcando la propiedad `sd.public.comment` como interna.
+  - `comentarTicket()` pasó a llamarse `comentarTicketInterno()` y **no acepta comentar en público**: si no se puede garantizar que la nota sea interna, no se comenta nada. En el caso límite de que Jira igual lo cree público, se avisa y no se reintenta, para no dejar dos comentarios sin poder borrar el que ya quedó publicado.
+
 ## [10.5.0] - 2026-08-11
 
 ### Added
