@@ -4,6 +4,90 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y el proyecto se adhiere a [Semantic Versioning](https://semver.org/).
 
+## [10.6.1] - 2026-08-11
+
+### Changed
+- **Cierre Unificado del Mensaje de Slack (hot-fix):** WPC tenía su propia variante del párrafo final (*"¿Desean que generemos un ticket para analizar la anomalía en profundidad? Aguardamos sus comentarios. Saludos cordiales."*). Ese texto está redactado para el **cliente**, no para el POD, así que en el canal interno preguntaba lo que no correspondía. Todos los PODs usan ahora el mismo cierre: *"Ante esto, les consulto, ¿están al tanto de la/s anomalía/s? ¿desean que le informemos al cliente?"*. La mención `@wpc` no se toca. El texto orientado al cliente sigue vivo donde sí corresponde: en el borrador de correo que arma `WebApp.js`.
+
+## [10.6.0] - 2026-08-11
+
+### Fixed
+- **Los Logs de Excepciones Iban Siempre al Canal de Testing:** `SlackService.enviarLogExcepcion` tenía hardcodeado `SLACK_WEBHOOK_TESTING`, así que en producción **todos** los avisos de alarmas silenciadas —y el ✅/⚠️ del cierre automático en Jira— caían en el canal de pruebas, donde nadie los mira. Justo el aviso de "no se pudo cerrar el ticket" terminaba en el lugar equivocado. Ahora se resuelve por entorno vía `Config.obtenerWebhookLogs()` (`SLACK_WEBHOOK_LOGS_PROD` / `SLACK_WEBHOOK_LOGS_TESTING`). Se eliminó de paso una guarda muerta: `getPropiedad()` lanza si la clave falta, por lo que el `if (!webhookURL)` posterior era inalcanzable; ahora la ausencia se captura y el aviso baja al Logger en vez de perderse.
+- **Comparación de Entorno Inconsistente:** `Main.js` comparaba `Config.ENTORNO === 'PROD'` para decidir la copia a `wpc@` en el correo de guardia, mientras el resto del código comparaba contra `'TESTING'`. Al renombrar el valor productivo, esa línea habría dejado de agregar la copia sin que nada fallara. Toda la decisión pasa ahora por `Config.esProduccion()`.
+
+### Changed
+- **El Entorno se Configura por Script Property, no por Código:** `Config.ENTORNO` era una constante editada a mano en un archivo versionado, de la que dependen el webhook de Slack, el canal de logs, la carpeta de Drive y la copia a `wpc@`. Pasar a producción obligaba a editarla, pushear y acordarse de no volver a commitearla mal; un `clasp push` con el valor equivocado publicaba las alarmas reales en el canal de pruebas, y desde v10.5.0 además cierra tickets reales en Jira. Ahora se lee de la Script Property `ENTORNO` (`TESTING` | `PRODUCCION`), así el mismo commit corre en los dos proyectos sin tocar nada.
+  - Se aceptan `PROD` y `PRODUCCIÓN` como sinónimos, y el valor se normaliza (espacios y mayúsculas), para que un tipeo de memoria no degrade el script en silencio.
+  - **Ante property ausente, ilegible o no reconocida se asume `TESTING`** y se deja aviso en el Logger. Es el lado seguro: una configuración rota no debe publicar en canales productivos ni escribir en los tickets de los clientes.
+  - El valor se cachea por ejecución: `PropertiesService` es una llamada de red encubierta y el entorno se consulta muchas veces por corrida.
+
+### Added
+- **Tests de Entorno y Ruteo de Webhooks (`test/entorno.test.js`):** 11 casos que blindan el interruptor más delicado del proyecto. Incluyen explícitamente el caso "valor mal tipeado" y verifican que en producción los logs **no** vayan al webhook de testing. `crearSandboxServicios()` acepta ahora un juego de Script Properties simuladas.
+
+## [10.5.3] - 2026-08-11
+
+### Changed
+- **Nota Interna de Cierre más Escueta:** El comentario pasa a ser una sola línea: `Alarma cerrada automáticamente por excepción: <ID>`. Antes repetía el cliente, la alarma y el host, datos que ya están en el propio ticket.
+- **El ID de la Excepción Viaja como Dato, no como Texto:** `_verificarExcepcion` ahora devuelve `idExcepcion` además del `log`. El cierre usa el ID crudo en lugar de rasparlo del log de Slack, que está escrito con markdown y para otro destinatario. Se eliminó el saneo de asteriscos, que existía sólo por eso.
+
+## [10.5.2] - 2026-08-11
+
+### Fixed
+- **Alarmas sin POD Imposibles de Silenciar:** Las reglas de Excepciones viven en hojas por POD (`Excepciones WPC`, `Excepciones POD 1`, …) y lo primero que validan es que el POD del ticket coincida con el de la hoja. Si Jira no traía el POD en el custom field, el ticket quedaba como `POD Desconocido` y **ninguna** regla podía matchearlo: la alarma era imposible de silenciar por más que la excepción estuviera bien cargada. Ahora, cuando falta el custom field, el POD se toma de la columna **POD de la hoja Clientes**, que ya declaraba ese dato (lo usaba `actualizarDropdownsClientes` para armar los dropdowns) pero se descartaba al construir los mapeos. Si Jira sí trae el POD, manda Jira: el respaldo nunca lo pisa.
+- **`DataRepository.mapaPodsClientes`:** Nuevo mapeo código de proyecto → POD (Columna A → Columna C de la hoja Clientes).
+
+## [10.5.1] - 2026-08-11
+
+### Fixed
+- **El Comentario de Cierre era Visible para el Cliente:** Los tickets viven en Jira Service Management y el cliente ve el portal, por lo que el comentario que dejaba el cierre automático se publicaba como *respuesta al cliente*, exponiéndole el detalle interno de por qué silenciamos su alarma. Ahora se crea siempre como **nota interna**.
+  - La vía principal es la API de Service Desk, que expone `public` como campo de primer orden y lo devuelve en la respuesta: no alcanza con un `2xx`, se **verifica** contra lo que Jira contestó que el comentario quedó privado.
+  - Como respaldo (por si el proyecto no fuera un service desk) se usa la API v3 marcando la propiedad `sd.public.comment` como interna.
+  - `comentarTicket()` pasó a llamarse `comentarTicketInterno()` y **no acepta comentar en público**: si no se puede garantizar que la nota sea interna, no se comenta nada. En el caso límite de que Jira igual lo cree público, se avisa y no se reintenta, para no dejar dos comentarios sin poder borrar el que ya quedó publicado.
+
+## [10.5.0] - 2026-08-11
+
+### Added
+- **Cierre Automático de Alarmas Silenciadas:** Hasta ahora "silenciar" significaba únicamente omitir la alarma del resumen del POD: el ticket quedaba abierto en Jira sin dueño. Ahora, cuando una alarma matchea una regla de Excepciones, además se transiciona a *Cerrada* y se le deja un comentario con el ID de la excepción que la silenció, para que quede trazable quién la cerró y por qué. Se controla con `Config.CERRAR_ALARMAS_SILENCIADAS`.
+- **Selección de Transición por Workflow, no por ID:** El cierre no hardcodea el ID de la transición. Se listan las transiciones que el workflow ofrece para el ticket y se elige por nombre (`Cerrar Alarma`) o, si lo renombraron, por el nombre del estado destino (`Cerrada`); ambos configurables en `Config.JIRA_TRANSICION_CIERRE`. Esto permite que proyectos distintos (SBM, SBDER, …) con workflows distintos funcionen sin tocar código, y evita el riesgo de aplicar por ID una transición equivocada.
+- **`JiraService.obtenerTransiciones()` y `JiraService.comentarTicket()`:** Primeras operaciones de escritura del proyecto contra Jira. El comentario se envía en formato ADF, como exige la API v3.
+- **Tests del Cierre (`test/cierreJira.test.js`):** 9 casos sobre un doble de `UrlFetchApp` que verifican qué se llama, con qué payload y qué se hace ante cada respuesta de Jira. Se agregó `crearSandboxServicios()` al harness, separado del sandbox de parseo (donde la red sigue estando prohibida a propósito).
+
+### Changed
+- **Tolerancia a Fallos en el Cierre:** Ningún error de Jira puede interrumpir el envío del resumen a Slack. `cerrarTicket()` nunca lanza por un rechazo de la API: devuelve `{ cerrado, detalle }` y el resultado se informa como una línea extra en el log de excepciones del canal de Slack (✅ cerrado / ⚠️ con el motivo del fallo). Una alarma que no se pudo cerrar sigue estando correctamente silenciada.
+- **El comentario es *best-effort*:** si el ticket se cerró pero el comentario falla, el cierre se da por bueno y el fallo queda en los logs. Cerrar es lo que importa.
+- **Un ticket ya cerrado no se reintenta:** Jira sencillamente no ofrece la transición de cierre, y ese caso se distingue de un error real (el detalle lista las transiciones que sí estaban disponibles).
+- **`Main.js` Desduplicado:** Los dos bloques idénticos que recorrían `alarmasSilenciadas` (el del disparador principal y el de la guardia) se unificaron en `_procesarAlarmasSilenciadas()`. `disparadorPrincipal_Local` queda deliberadamente afuera: es una simulación y no debe cerrar tickets ni postear en Slack.
+
+## [10.4.0] - 2026-08-10
+
+### Added
+- **Arquitectura Multi-Parser (Strategy + Chain of Responsibility):** Se introdujo `AlarmParserRegistry.js`, un registro de estrategias de parseo que permite soportar varios formatos de alarma en paralelo. Cada dialecto vive en su propio archivo bajo `core/parsers/` y expone un contrato mínimo (`puedeParsear` / `parsear`) devolviendo siempre el mismo **modelo canónico**. Gracias a eso, el motor de Excepciones, el agrupado y `MessageFormatter.js` no necesitan saber de qué formato vino la alarma. Agregar un formato nuevo ya no requiere tocar `AlarmProcessor.js`.
+- **Soporte para el Formato Estandarizado Nuevo (vROps / Aria Operations):** Se implementó `VropsStandardParser.js`, capaz de interpretar las alarmas que el equipo nuevo envía con descripciones estructuradas del tipo `Etiqueta: valor`. Extrae correctamente el objeto afectado, vCenter, Cluster, Datacenter, Descripción, Recomendación, Health Status y las latencias de vSAN Stretched Cluster.
+- **Catálogo Declarativo de Categorías:** Las "Categorías" del formato nuevo (`Host`, `vSAN Cluster`, `Capacity Disk`) se declaran como datos en `VropsCategorias.js`, no como código. Sumar una categoría futura (Datastore, Virtual Machine, etc.) es agregar una entrada al array: no se escribe lógica nueva ni se duplica parseo.
+- **Suite de Tests de Regresión:** Se incorporó `test/` con *golden tests* ejecutables en Node (`npm test`). Congelan la salida exacta de 14 casos del formato viejo para garantizar que ningún refactor futuro los altere, cubren 7 casos del formato nuevo, y validan 9 escenarios del motor de Excepciones sobre ambos dialectos. Se agregó `.claspignore` para que esta carpeta nunca se suba a Apps Script.
+
+### Fixed
+- **Target Basura en Alarmas del Formato Nuevo:** Las alarmas con los prefijos `9x5 - Operations - `, `9x5 - vCenter - ` y `24x7 Wetcom - ` estaban llegando a Slack con el prefijo interpretado como si fuera el recurso afectado (Ej: `Host: 9x5 - Operations`). El ruteo por estructura de la descripción corrige el problema de raíz.
+- **Alarmas Nuevas Reportadas como Desconocidas:** El prefijo del summary impedía cruzar el nombre contra la hoja *Tipos de Alarmas*, por lo que toda alarma del formato nuevo aparecía como `Alarma desconocida [...]`. Ahora el prefijo se remueve (de forma configurable vía `Config.PREFIJOS_SOBRE_ALARMA`) antes del cruce, contemplando además el punto final que Jira agrega y la planilla no tiene.
+- **Colapso de Alarmas bajo el Placeholder "Configurar en Excel":** Las filas de la planilla dadas de alta pero aún sin traducir devolvían literalmente el texto `Configurar en Excel` como nombre de alarma, lo que agrupaba decenas de alarmas distintas bajo un mismo ítem en Slack. Ahora se detecta ese placeholder (`Config.PLACEHOLDER_TIPO_ALARMA`), se muestra el nombre original de la alarma y se deja un warning. Al completar la columna B de la planilla, la traducción aplica sola sin tocar código.
+- **Variables de vROps sin Resolver:** Los campos cuya variable no resuelve y llegan literales (Ej: `${VMWARE|HostSystem|summary|parentCluster}`) se descartan en lugar de publicarse como si fueran datos reales.
+- **Alarmas Nativas de vCenter Reenviadas con Prefijo:** Los tickets del tipo `9x5 - vCenter - alarm.StorageConnectivityAlarm` llegaban a Slack como `Alarma desconocida [vCenter - alarm]`, porque la expresión regular del formato histórico cortaba el nombre en el primer punto. Ahora el prefijo se remueve también en el camino legacy.
+- **Detalle Perdido en Alarmas Reenviadas:** En estos tickets el summary trae únicamente el ID de la alarma y el texto legible quedó en la sección `Description:` del cuerpo. Se agregó un segundo intento de resolución que reutiliza el mismo extractor sobre esa sección. Gracias a eso, la alarma vieja y la nueva resuelven al **mismo** nombre de la planilla (Ej: `vSAN Health Test`, `Perdida de redundancia de storage`), se agrupan juntas en Slack y siguen pasando por sus `AlarmFormatters` de siempre. No hace falta cargar filas nuevas en *Tipos de Alarmas*.
+- **Falsos Positivos que se Colaban tras Corregir el Prefijo:** Las alarmas `Falso positivo - Wetcom` se venían filtrando de rebote (el nombre no se encontraba y el texto quedaba embebido en `Alarma desconocida [...]`). Al resolverse bien el nombre ese efecto colateral desaparecía y se habrían publicado. El descarte ahora evalúa también el summary crudo.
+
+- **Detalle Perdido por el Aplanado de ADF (Producción):** La sección `Description:` se buscaba anclada a un salto de línea, pero Jira une los párrafos de nivel superior de la description con un **espacio**, por lo que un cuerpo que en la UI se ve en varias líneas puede llegar como un único renglón. En producción esto hacía desaparecer el detalle de las alarmas `9x5 - vCenter -`. El anclaje ya no depende de saltos de línea.
+- **Placeholder Numerado en la Planilla:** La detección del texto `Configurar en Excel` era por coincidencia exacta y no cubría las variantes numeradas reales de la hoja (`Configurar en Excel 2`), por lo que ese texto igual llegaba a Slack como nombre de alarma. Ahora la comparación es por prefijo.
+
+### Added
+- **Deduplicación por Cobertura Contratada:** Cuando la misma alarma sobre el mismo objeto entra por los dos canales (las reglas de `9x5` y `24x7` disparan sobre el mismo evento), se informa una sola vez. El orden de preferencia se configura en `Config.PRIORIDAD_COBERTURA`. La identidad se calcula con cliente + POD + alarma + objeto afectado, deliberadamente **sin** vCenter ni Cluster, porque la copia del canal 24x7 trae menos datos de ubicación y de otro modo nunca se reconocerían como la misma alarma. Si el objeto afectado no pudo identificarse, no se deduplica: perder una alarma es peor que verla repetida. Los duplicados de la misma cobertura se siguen agrupando como siempre, en un ítem con su rango de fechas.
+- **Soporte de la Variante en Prosa (canal 24x7):** El canal `24x7 Wetcom` no envía campos rotulados sino una frase (`Alerta reportada en <objeto> ubicado en <cluster>. Descripcion: ...`). Se reconoce como una variante legítima del formato nuevo y se le extraen objeto, cluster y descripción.
+- **`AlarmEnvelope.js`:** Desensobra el prefijo del summary y expone la cobertura contratada y el origen emisor, dato que antes se descartaba. La cobertura se usa para deduplicar y, opcionalmente, para rotular cada alarma (`Config.MOSTRAR_ROTULO_COBERTURA`, apagado por defecto).
+- **Alarmas sin Descripción (`Config.ALARMAS_SIN_DESCRIPCION`):** Lista de alarmas cuyo título ya es suficientemente explícito y cuya descripción de vROps (un párrafo genérico y largo) no se publica. Acepta tanto el nombre traducido de la planilla como el original en inglés. Además, la descripción se omite automáticamente cuando repite el nombre de la alarma.
+
+### Changed
+- **`AlarmProcessor.js` Adelgazado:** Se extrajeron `_debeExcluirse()` e `_inferirEtiquetaTarget()` como políticas transversales aplicables a cualquier dialecto. La lógica de parseo del formato viejo se movió sin modificaciones a `LegacyVCenterParser.js`, que además queda registrado como **fallback universal**: si ningún parser específico reconoce un ticket, el comportamiento es idéntico al histórico.
+- **Robustez ante el ADF de Jira:** El parser del formato nuevo no depende de saltos de línea. Según cómo la automatización arme la descripción, Jira puede entregarla multilínea o colapsada en un único renglón; el troceo por etiquetas conocidas funciona igual en ambos casos.
+
 ## [10.3.0] - 2026-07-16
 
 ### Added

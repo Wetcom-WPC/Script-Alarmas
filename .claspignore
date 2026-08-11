@@ -1,0 +1,9 @@
+# Archivos que NO deben subirse a Google Apps Script con `clasp push`.
+# Importante: la carpeta test/ contiene código Node (require/module.exports) que
+# Apps Script no sabe interpretar, y test/golden.json se subiría por jsonExtensions.
+test/**
+node_modules/**
+.git/**
+.agents/**
+package.json
+package-lock.json

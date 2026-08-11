@@ -1,0 +1,541 @@
+{
+  "legacy-vsan-health-test": {
+    "alarmasSilenciadas": [],
+    "entradas": [
+      {
+        "alarma": "vSAN Health Test",
+        "cliente": "Banco Macro",
+        "origen": {
+          "cluster": "CL-PROD-01",
+          "etiquetaTarget": "Cluster",
+          "target": "CL-PROD-01",
+          "vCenter": "vcsa-prod.cliente.com.ar"
+        },
+        "pod": "Operations",
+        "summaryResto": "'Site latency health' on cluster CL-PROD-01 changed from green to red",
+        "warnings": null
+      }
+    ],
+    "errores": []
+  },
+  "legacy-path-redundancy": {
+    "alarmasSilenciadas": [],
+    "entradas": [
+      {
+        "alarma": "Perdida de redundancia de storage",
+        "cliente": "Banco Macro",
+        "origen": {
+          "cluster": "CL-PROD-01",
+          "etiquetaTarget": "Host",
+          "target": "esx01-prod.cliente.com.ar",
+          "vCenter": "vcsa-prod.cliente.com.ar"
+        },
+        "pod": "Operations",
+        "summaryResto": "storage device naa.6c45e5c100b1de3aa1b2c3d4e5f60718.\nPath vmhba2:C0:T1:L0 is down.\nAffected datastores: DS-PROD-01",
+        "warnings": null
+      }
+    ],
+    "errores": []
+  },
+  "legacy-host-not-responding": {
+    "alarmasSilenciadas": [],
+    "entradas": [
+      {
+        "alarma": "Desconexión de Host",
+        "cliente": "Banco Macro",
+        "origen": {
+          "cluster": "CL-PROD-01",
+          "etiquetaTarget": "Host",
+          "target": "esx01-prod.cliente.com.ar",
+          "vCenter": "vcsa-prod.cliente.com.ar"
+        },
+        "pod": "WPC",
+        "summaryResto": "CL-PROD-01",
+        "warnings": null
+      }
+    ],
+    "errores": []
+  },
+  "legacy-lost-connection-server": {
+    "alarmasSilenciadas": [],
+    "entradas": [
+      {
+        "alarma": "Pérdida de conexión a storage",
+        "cliente": "Banco Macro",
+        "origen": {
+          "cluster": "CL-PROD-01",
+          "etiquetaTarget": "Host",
+          "target": "esx02-prod.cliente.com.ar",
+          "vCenter": "vcsa-prod.cliente.com.ar"
+        },
+        "pod": "Operations",
+        "summaryResto": "Lost connection to server 10.20.30.40\nMount point: /vol/ds_nfs_01\nMounted as: DS-NFS-01",
+        "warnings": null
+      }
+    ],
+    "errores": []
+  },
+  "legacy-ha-failover": {
+    "alarmasSilenciadas": [],
+    "entradas": [
+      {
+        "alarma": "Alarma de HA",
+        "cliente": "Banco Macro",
+        "origen": {
+          "cluster": "CL-PROD-01",
+          "etiquetaTarget": "Cluster",
+          "target": "CL-PROD-01",
+          "vCenter": "vcsa-prod.cliente.com.ar"
+        },
+        "pod": "Operations",
+        "summaryResto": "on 3 virtual machines in cluster CL-PROD-01",
+        "warnings": null
+      }
+    ],
+    "errores": []
+  },
+  "legacy-hardware-sensor": {
+    "alarmasSilenciadas": [],
+    "entradas": [
+      {
+        "alarma": "Alarma de sensor de Hardware",
+        "cliente": "Banco Macro",
+        "origen": {
+          "cluster": "CL-PROD-01",
+          "etiquetaTarget": "Host",
+          "target": "esx03-prod.cliente.com.ar",
+          "vCenter": "vcsa-prod.cliente.com.ar"
+        },
+        "pod": "WPC",
+        "summaryResto": "Sensor 12 Fan Module 3: red\nSensor 4 Power Supply 2: yellow",
+        "warnings": null
+      }
+    ],
+    "errores": []
+  },
+  "legacy-insufficient-resources": {
+    "alarmasSilenciadas": [],
+    "entradas": [
+      {
+        "alarma": "Insufficient resources to satisfy vSphere HA failover level",
+        "cliente": "Banco Macro",
+        "origen": {
+          "cluster": "CL-PROD-02",
+          "etiquetaTarget": "Cluster",
+          "target": "CL-PROD-02",
+          "vCenter": "vcsa-prod.cliente.com.ar"
+        },
+        "pod": "Operations",
+        "summaryResto": "on cluster CL-PROD-02",
+        "warnings": null
+      }
+    ],
+    "errores": []
+  },
+  "legacy-red-redundancy": {
+    "alarmasSilenciadas": [],
+    "entradas": [
+      {
+        "alarma": "Perdida de redundancia de red",
+        "cliente": "Banco Macro",
+        "origen": {
+          "cluster": "CL-PROD-01",
+          "etiquetaTarget": "Host",
+          "target": "esx04-prod.cliente.com.ar",
+          "vCenter": "vcsa-prod.cliente.com.ar"
+        },
+        "pod": "Operations",
+        "summaryResto": "Physical NIC vmnic3 linkstate is down",
+        "warnings": null
+      }
+    ],
+    "errores": []
+  },
+  "legacy-datastore-veeam-excluido": {
+    "alarmasSilenciadas": [],
+    "entradas": [],
+    "errores": [],
+    "excluida": true
+  },
+  "legacy-vrops-ignorada": {
+    "alarmasSilenciadas": [],
+    "entradas": [],
+    "errores": [],
+    "excluida": true
+  },
+  "legacy-alarma-desconocida": {
+    "alarmasSilenciadas": [],
+    "entradas": [
+      {
+        "alarma": "Alarma desconocida [.EstoNoExisteEnLaPlanilla]",
+        "cliente": "Banco Macro",
+        "origen": {
+          "cluster": "CL-PROD-01",
+          "etiquetaTarget": "Host",
+          "target": "esx06-prod.cliente.com.ar",
+          "vCenter": "vcsa-prod.cliente.com.ar"
+        },
+        "pod": "Operations",
+        "summaryResto": "Alarm on something",
+        "warnings": "Alarma no encontrada para el summary \"[alarm.EstoNoExisteEnLaPlanilla] Alarm on something\""
+      }
+    ],
+    "errores": []
+  },
+  "legacy-sin-description-util": {
+    "alarmasSilenciadas": [],
+    "entradas": [
+      {
+        "alarma": "Alarma desconocida [NTNX-PROD-01]",
+        "cliente": "Banco Macro",
+        "origen": {
+          "cluster": "Desconocido",
+          "etiquetaTarget": "Recurso Afectado",
+          "target": "Target Desconocido",
+          "vCenter": "Desconocido"
+        },
+        "pod": "Operations",
+        "summaryResto": "has 3 unresolved alerts",
+        "warnings": "Alarma no encontrada para el summary \"Alert Email Digest: NTNX-PROD-01 has 3 unresolved alerts\", Target no encontrado en la descripción/summary \"Alert Email Digest: NTNX-PROD-01 has 3 unresolved alerts\""
+      }
+    ],
+    "errores": []
+  },
+  "prefijo-9x5-vcenter-falso-positivo": {
+    "alarmasSilenciadas": [],
+    "entradas": [],
+    "errores": [],
+    "excluida": true
+  },
+  "prefijo-9x5-vcenter-payload-legacy": {
+    "alarmasSilenciadas": [],
+    "entradas": [],
+    "errores": [],
+    "excluida": true
+  },
+  "vrops-host-multilinea": {
+    "alarmasSilenciadas": [],
+    "entradas": [
+      {
+        "alarma": "Alarma de desconexión de host",
+        "cliente": "Banco Macro",
+        "origen": {
+          "cluster": "CL-PROD-03",
+          "cobertura": "9x5",
+          "etiquetaTarget": "Host",
+          "target": "esx07-prod.cliente.com.ar",
+          "vCenter": "vcsa-prod.cliente.com.ar"
+        },
+        "pod": "Operations",
+        "summaryResto": null,
+        "warnings": null
+      }
+    ],
+    "errores": []
+  },
+  "vrops-host-una-sola-linea": {
+    "alarmasSilenciadas": [],
+    "entradas": [
+      {
+        "alarma": "Alarma de desconexión de host",
+        "cliente": "Banco Macro",
+        "origen": {
+          "cluster": "CL-PROD-03",
+          "cobertura": "24x7",
+          "etiquetaTarget": "Host",
+          "target": "esx08-prod.cliente.com.ar",
+          "vCenter": "vcsa-prod.cliente.com.ar"
+        },
+        "pod": "WPC",
+        "summaryResto": null,
+        "warnings": null
+      }
+    ],
+    "errores": []
+  },
+  "vrops-vsan-cluster": {
+    "alarmasSilenciadas": [],
+    "entradas": [
+      {
+        "alarma": "Site latency between two fault domains and the witness host has exceeded the recommended treshold values in a vSAN Stretched cluster",
+        "cliente": "Banco Macro",
+        "origen": {
+          "cluster": "Desconocido",
+          "cobertura": "9x5",
+          "etiquetaTarget": "Cluster",
+          "target": "CL-VSAN-STRETCHED-01",
+          "vCenter": "vcsa-prod.cliente.com.ar"
+        },
+        "pod": "Operations",
+        "summaryResto": "La latencia entre sitios superó el umbral recomendado.\nLatencia sitio preferido a secundario: 8 ms\nLatencia sitio preferido a witness: 210 ms",
+        "warnings": "Tipo de alarma pendiente de configurar en la planilla: \"Site latency between two fault domains and the witness host has exceeded the recommended treshold values in a vSAN Stretched cluster\""
+      }
+    ],
+    "errores": []
+  },
+  "vrops-capacity-disk": {
+    "alarmasSilenciadas": [],
+    "entradas": [
+      {
+        "alarma": "The overall cache disk health is in bad state, The overall capacity disk health is in bad state",
+        "cliente": "Banco Macro",
+        "origen": {
+          "cluster": "Desconocido",
+          "cobertura": "24x7",
+          "etiquetaTarget": "Disco",
+          "target": "naa.6c45e5c100b1de3aa1b2c3d4e5f60718",
+          "vCenter": "Desconocido"
+        },
+        "pod": "Operations",
+        "summaryResto": "El estado de salud del disco de capacidad es malo.\nHealth Status: 3",
+        "warnings": "Tipo de alarma pendiente de configurar en la planilla: \"The overall cache disk health is in bad state, The overall capacity disk health is in bad state\""
+      }
+    ],
+    "errores": []
+  },
+  "vrops-vsan-cluster-ya-traducida": {
+    "alarmasSilenciadas": [],
+    "entradas": [
+      {
+        "alarma": "Espacio libre en vSAN por debajo del 30%",
+        "cliente": "Banco Macro",
+        "origen": {
+          "cluster": "Desconocido",
+          "cobertura": "9x5",
+          "etiquetaTarget": "Cluster",
+          "target": "CL-VSAN-02",
+          "vCenter": "vcsa-prod.cliente.com.ar"
+        },
+        "pod": "Operations",
+        "summaryResto": "Espacio libre por debajo del umbral.",
+        "warnings": null
+      }
+    ],
+    "errores": []
+  },
+  "vrops-con-variables-sin-resolver": {
+    "alarmasSilenciadas": [],
+    "entradas": [
+      {
+        "alarma": "The host has lost redundant uplinks to the network",
+        "cliente": "Banco Macro",
+        "origen": {
+          "cluster": "Desconocido",
+          "cobertura": "24x7",
+          "etiquetaTarget": "Host",
+          "target": "esx09-prod.cliente.com.ar",
+          "vCenter": "vcsa-prod.cliente.com.ar"
+        },
+        "pod": "Operations",
+        "summaryResto": "El host perdió uplinks redundantes.",
+        "warnings": "Tipo de alarma pendiente de configurar en la planilla: \"The host has lost redundant uplinks to the network\""
+      }
+    ],
+    "errores": []
+  },
+  "vrops-sin-prefijo": {
+    "alarmasSilenciadas": [],
+    "entradas": [
+      {
+        "alarma": "vCenter Server has lost connection to a host that is part of a vSAN cluster",
+        "cliente": "Banco Macro",
+        "origen": {
+          "cluster": "CL-VSAN-02",
+          "etiquetaTarget": "Host",
+          "target": "esx10-prod.cliente.com.ar",
+          "vCenter": "vcsa-prod.cliente.com.ar"
+        },
+        "pod": "Operations",
+        "summaryResto": "El vCenter perdió la conexión con un host del cluster vSAN.",
+        "warnings": "Tipo de alarma pendiente de configurar en la planilla: \"vCenter Server has lost connection to a host that is part of a vSAN cluster\""
+      }
+    ],
+    "errores": []
+  },
+  "real-SBM-26380-operations-host": {
+    "alarmasSilenciadas": [],
+    "entradas": [
+      {
+        "alarma": "Alarma de desconexión de host",
+        "cliente": "Banco Macro",
+        "origen": {
+          "cluster": "Desconocido",
+          "cobertura": "9x5",
+          "etiquetaTarget": "Host",
+          "target": "10.74.1.228",
+          "vCenter": "dn-macro"
+        },
+        "pod": "5",
+        "summaryResto": null,
+        "warnings": null
+      }
+    ],
+    "errores": []
+  },
+  "real-SBM-26382-wetcom-mal-formada": {
+    "alarmasSilenciadas": [],
+    "entradas": [
+      {
+        "alarma": "Alarma de desconexión de host",
+        "cliente": "Banco Macro",
+        "origen": {
+          "cluster": "Desconocido",
+          "cobertura": "24x7",
+          "etiquetaTarget": "Host",
+          "target": "10.74.1.228",
+          "vCenter": "Desconocido"
+        },
+        "pod": "5",
+        "summaryResto": null,
+        "warnings": "Alarma en formato prosa (sin campos estructurados) en \"24x7 Wetcom - Host has lost connection to vCenter Server\""
+      }
+    ],
+    "errores": []
+  },
+  "real-SBM-26392-vcenter-storage": {
+    "alarmasSilenciadas": [],
+    "entradas": [
+      {
+        "alarma": "Pérdida de conexión a storage",
+        "cliente": "Banco Macro",
+        "origen": {
+          "cluster": "Desconocido",
+          "cobertura": "9x5",
+          "etiquetaTarget": "Host",
+          "target": "esxi031-lom.macro.com.ar",
+          "vCenter": "Desconocido"
+        },
+        "pod": "5",
+        "summaryResto": "Path redundancy to storage device naa.6c45e5c100b1de3acc8eb07c00000003 degraded. Path vmhba64:C0:T1:L4 is down. Affected datastores: Unknown.",
+        "warnings": null
+      }
+    ],
+    "errores": []
+  },
+  "real-SBM-26394-vcenter-vsan": {
+    "alarmasSilenciadas": [],
+    "entradas": [
+      {
+        "alarma": "Alarma de vSAN",
+        "cliente": "Banco Macro",
+        "origen": {
+          "cluster": "Desconocido",
+          "cobertura": "9x5",
+          "etiquetaTarget": "Cluster",
+          "target": "cl-highio-paclom-01",
+          "vCenter": "Desconocido"
+        },
+        "pod": "5",
+        "summaryResto": "vSAN Health Test 'Site latency health' status changed from 'green' to 'yellow'",
+        "warnings": null
+      }
+    ],
+    "errores": []
+  },
+  "real-falso-positivo-con-prefijo": {
+    "alarmasSilenciadas": [],
+    "entradas": [],
+    "errores": [],
+    "excluida": true
+  },
+  "real-SBM-26401-prosa-con-cluster": {
+    "alarmasSilenciadas": [],
+    "entradas": [
+      {
+        "alarma": "Caída de enlace en NIC física",
+        "cliente": "Banco Macro",
+        "origen": {
+          "cluster": "cl-gp-paclom-02",
+          "cobertura": "24x7",
+          "etiquetaTarget": "Host",
+          "target": "esxi023-lom.macro.com.ar",
+          "vCenter": "Desconocido"
+        },
+        "pod": "5",
+        "summaryResto": null,
+        "warnings": "Alarma en formato prosa (sin campos estructurados) en \"24x7 Wetcom - ESXi host has detected a link status down on a physical NIC\""
+      }
+    ],
+    "errores": []
+  },
+  "real-SBM-26397-prosa-sin-cluster": {
+    "alarmasSilenciadas": [],
+    "entradas": [
+      {
+        "alarma": "Redundancia de rutas a storage degradada",
+        "cliente": "Banco Macro",
+        "origen": {
+          "cluster": "Desconocido",
+          "cobertura": "24x7",
+          "etiquetaTarget": "Host",
+          "target": "esxi031-lom.macro.com.ar",
+          "vCenter": "Desconocido"
+        },
+        "pod": "5",
+        "summaryResto": null,
+        "warnings": "Alarma en formato prosa (sin campos estructurados) en \"24x7 Wetcom - Path redundancy to storage device degraded\""
+      }
+    ],
+    "errores": []
+  },
+  "real-SBM-26402-prosa-nombre-conocido": {
+    "alarmasSilenciadas": [],
+    "entradas": [
+      {
+        "alarma": "Alarma de sensor de voltaje",
+        "cliente": "Banco Macro",
+        "origen": {
+          "cluster": "cl-lan-prod-vdi-pac",
+          "cobertura": "24x7",
+          "etiquetaTarget": "Host",
+          "target": "esxi029-pac.macro.com.ar",
+          "vCenter": "Desconocido"
+        },
+        "pod": "5",
+        "summaryResto": "One or more voltage sensors on the host are reporting problems. Specific details should be available in the symptom details. For more information, check the Hardware Status of the host in vSphere Client.",
+        "warnings": "Alarma en formato prosa (sin campos estructurados) en \"24x7 Wetcom - Voltage sensors are reporting problems\""
+      }
+    ],
+    "errores": []
+  },
+  "real-SWAO-71-balanz-vcenter": {
+    "alarmasSilenciadas": [],
+    "entradas": [
+      {
+        "alarma": "Desconexión de Host",
+        "cliente": "Balanz",
+        "origen": {
+          "cluster": "Desconocido",
+          "cobertura": "9x5",
+          "etiquetaTarget": "Host",
+          "target": "esxi15.balanzcapital.net.ar",
+          "vCenter": "vcsa65.balanzcapital.net.ar"
+        },
+        "pod": "5",
+        "summaryResto": "BALANZ",
+        "warnings": null
+      }
+    ],
+    "errores": []
+  },
+  "robustez-adf-totalmente-colapsado": {
+    "alarmasSilenciadas": [],
+    "entradas": [
+      {
+        "alarma": "Desconexión de Host",
+        "cliente": "Balanz",
+        "origen": {
+          "cluster": "Desconocido",
+          "cobertura": "9x5",
+          "etiquetaTarget": "Host",
+          "target": "esxi15.balanzcapital.net.ar",
+          "vCenter": "vcsa65.balanzcapital.net.ar"
+        },
+        "pod": "5",
+        "summaryResto": "BALANZ",
+        "warnings": null
+      }
+    ],
+    "errores": []
+  }
+}

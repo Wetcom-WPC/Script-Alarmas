@@ -7,6 +7,9 @@ const AlarmProcessor = {
     const errores = [];
     const mensajesProcesados = {};
     const alarmasSilenciadas = [];
+    // Se acumulan primero y se agrupan al final, porque la deduplicación por cobertura
+    // necesita ver el lote completo para saber cuál de las copias conviene conservar.
+    const candidatas = [];
 
     tickets.forEach((ticket, index) => {
       const warnings = [];
@@ -22,33 +25,64 @@ const AlarmProcessor = {
 
         let pod = ticket.pod;
         if (!pod || pod === 'POD Desconocido') {
-          warnings.push(`POD no encontrado para el ticket "${ticket.key}" en el custom field de Jira`);
-          pod = 'POD Desconocido';
+          // Sin POD ninguna regla de Excepciones puede matchear (las reglas viven en hojas
+          // por POD), así que la alarma quedaría imposible de silenciar. La hoja Clientes ya
+          // declara a qué POD pertenece cada proyecto, así que se usa como respaldo cuando
+          // Jira no trae el custom field: tickets cargados a mano, proyectos de prueba o
+          // automatizaciones que no lo setean.
+          const podDePlanilla = this._obtenerPodDePlanilla(ticket.key, mappings.mapaPodsClientes);
+          if (podDePlanilla) {
+            pod = podDePlanilla;
+            warnings.push(`POD tomado de la hoja Clientes ("${pod}"): el ticket "${ticket.key}" no lo trae en el custom field de Jira`);
+          } else {
+            warnings.push(`POD no encontrado para el ticket "${ticket.key}" en el custom field de Jira`);
+            pod = 'POD Desconocido';
+          }
         }
 
-        let { alarma: alarmaProcesada, summaryResto } = AlarmParser.extraerNombreYResumenAlarma(ticket.summary, mappings.mapaAlarmas, warnings);
-        
-        let origen = AlarmParser.extraerOrigen(ticket.description, ticket.summary);
-        if (origen.target === 'Target no encontrado') {
-          warnings.push(`Target no encontrado en la descripción/summary "${ticket.summary}"`);
-          origen.target = 'Target Desconocido';
-        }
+        // El registry elige el parser según el dialecto del ticket y devuelve
+        // siempre el mismo modelo canónico, así que de acá para abajo da igual
+        // si la alarma vino del formato viejo o del nuevo.
+        const parseada = AlarmParserRegistry.parsear(ticket, mappings, warnings);
+        if (!parseada.incluir) return;
 
-        const formato = this._formatearAlarmaPorTipo(alarmaProcesada, summaryResto, origen.target, ticket.description);
-        if (!formato.incluir) return; // Si debe excluirse (Ej. Falso positivo) no hace nada
-        
-        origen.target = formato.nuevoTarget;
-        origen.etiquetaTarget = formato.etiquetaTarget;
-        summaryResto = formato.nuevoSummary;
+        const alarmaProcesada = parseada.alarma;
+        let origen = parseada.origen;
+        let summaryResto = parseada.summaryResto;
+
+        // Política transversal: descartes por diseño y falsos positivos, sin importar el dialecto.
+        if (this._debeExcluirse(alarmaProcesada, ticket.summary)) return;
+
+        if (parseada.usaFormattersLegacy) {
+          const formato = this._formatearAlarmaPorTipo(alarmaProcesada, summaryResto, origen.target, ticket.description);
+          if (!formato.incluir) return; // Si debe excluirse (Ej. Falso positivo) no hace nada
+
+          origen.target = formato.nuevoTarget;
+          origen.etiquetaTarget = formato.etiquetaTarget;
+          summaryResto = formato.nuevoSummary;
+        } else if (!origen.etiquetaTarget && origen.target) {
+          // Red de seguridad: un parser nuevo debería rotular siempre su objeto.
+          origen.etiquetaTarget = this._inferirEtiquetaTarget(origen.target);
+        }
 
         // Filtrado por reglas de Excepciones dinámicas
         const excepcion = this._verificarExcepcion(pod, cliente, alarmaProcesada, origen, summaryResto, mappings.reglasExcepcion);
         if (excepcion.matcheada) {
-          alarmasSilenciadas.push({ log: excepcion.log, ticketKey: ticket.key });
+          alarmasSilenciadas.push({ log: excepcion.log, ticketKey: ticket.key, idExcepcion: excepcion.idExcepcion });
           return; // La alarma cae dentro de una ventana de mantenimiento o excepción, se omite.
         }
 
-        this._agruparMensaje(pod, cliente, alarmaProcesada, JSON.stringify(origen), ticket.created, mensajesProcesados, warnings, summaryResto);
+        candidatas.push({
+          pod: pod,
+          cliente: cliente,
+          alarma: alarmaProcesada,
+          origen: origen,
+          summaryResto: summaryResto,
+          created: ticket.created,
+          warnings: warnings,
+          ticketKey: ticket.key,
+          clave: this._claveDeduplicacion(pod, cliente, alarmaProcesada, origen)
+        });
 
       } catch (err) {
         // index + 2 por retrocompatibilidad con logs antiguos basados en row (fila de excel)
@@ -58,7 +92,78 @@ const AlarmProcessor = {
       }
     });
 
-    return { mensajesProcesados, errores, alarmasSilenciadas };
+    const { conservadas, descartadas } = this._descartarDuplicadosPorCobertura(candidatas);
+
+    descartadas.forEach(d => {
+      Logger.log(`Duplicada por cobertura: se omite ${d.ticketKey} (${d.origen.cobertura}) - "${d.alarma}" sobre ${d.origen.target}`);
+    });
+
+    conservadas.forEach(c => {
+      this._agruparMensaje(c.pod, c.cliente, c.alarma, JSON.stringify(c.origen), c.created, mensajesProcesados, c.warnings, c.summaryResto);
+    });
+
+    return { mensajesProcesados, errores, alarmasSilenciadas, duplicadasDescartadas: descartadas };
+  },
+
+  /**
+   * Clave de identidad para decidir si dos alarmas son "la misma".
+   * Devuelve null cuando la alarma no debe participar de la deduplicación.
+   *
+   * Deliberadamente NO incluye vCenter ni Cluster: la copia que llega por el canal 24x7
+   * suele traer menos datos de ubicación que la del 9x5, y si se compararan esos campos
+   * nunca se reconocerían como la misma alarma.
+   */
+  _claveDeduplicacion: function(pod, cliente, alarma, origen) {
+    // Sin cobertura no hay con qué desempatar: las del formato histórico quedan afuera.
+    if (!origen || !origen.cobertura) return null;
+
+    const target = (origen.target || '').toString().toLowerCase().trim();
+
+    // Si no se pudo identificar el objeto afectado, no hay forma de afirmar que sean la
+    // misma alarma. Ante la duda se informan las dos: perder una alarma es mucho peor
+    // que mostrarla repetida.
+    if (!target || target.indexOf('desconocido') !== -1 || target.indexOf('no encontrado') !== -1) return null;
+
+    return [pod, cliente, alarma, target].join('||').toLowerCase();
+  },
+
+  /**
+   * Cuando la misma alarma sobre el mismo objeto llega por varias coberturas, conserva
+   * únicamente la de mayor prioridad según Config.PRIORIDAD_COBERTURA.
+   *
+   * Los duplicados de la MISMA cobertura no se tocan: se siguen agrupando como siempre
+   * (un solo ítem con su rango de fechas).
+   */
+  _descartarDuplicadosPorCobertura: function(candidatas) {
+    const prioridad = Config.PRIORIDAD_COBERTURA || [];
+    if (prioridad.length < 2) return { conservadas: candidatas, descartadas: [] };
+
+    // Las coberturas no listadas quedan últimas: ante algo desconocido, preferimos las conocidas.
+    const rango = (cobertura) => {
+      const i = prioridad.indexOf(cobertura);
+      return i === -1 ? Number.MAX_SAFE_INTEGER : i;
+    };
+
+    const mejorRango = {};
+    candidatas.forEach(c => {
+      if (!c.clave) return;
+      const r = rango(c.origen.cobertura);
+      if (mejorRango[c.clave] === undefined || r < mejorRango[c.clave]) mejorRango[c.clave] = r;
+    });
+
+    const conservadas = [];
+    const descartadas = [];
+
+    candidatas.forEach(c => {
+      // Se descarta sólo si otra copia tiene una cobertura ESTRICTAMENTE mejor
+      if (c.clave && rango(c.origen.cobertura) > mejorRango[c.clave]) {
+        descartadas.push(c);
+      } else {
+        conservadas.push(c);
+      }
+    });
+
+    return { conservadas, descartadas };
   },
 
   _obtenerClaveCliente: function(key, mapaClientes) {
@@ -66,11 +171,51 @@ const AlarmProcessor = {
     return mapaClientes[codigoCliente] || `No encontrado (${codigoCliente})`;
   },
 
-  _formatearAlarmaPorTipo: function(tipoAlarma, summaryResto, target, description) {
+  /**
+   * POD declarado en la hoja Clientes para el proyecto de Jira del ticket (Ej: WST → WPC).
+   * Devuelve null si la planilla no lo declara, para que quien llame decida el fallback.
+   */
+  _obtenerPodDePlanilla: function(key, mapaPodsClientes) {
+    if (!mapaPodsClientes) return null;
+    const codigoCliente = key.split('-')[0];
+    return mapaPodsClientes[codigoCliente] || null;
+  },
+
+  /**
+   * Descartes que aplican a cualquier dialecto: los tipos ignorados por diseño
+   * y cualquier alarma marcada como falso positivo.
+   */
+  _debeExcluirse: function(tipoAlarma, summaryOriginal) {
     const alarmasExcluir = Config.ALARMAS_IGNORADAS_POR_DEFECTO || [];
-    
-    // Si el tipo de alarma coincide exacto con los estáticos, o si en cualquier parte contiene "falso positivo"
-    if (alarmasExcluir.includes(tipoAlarma) || tipoAlarma.toLowerCase().includes('falso positivo')) {
+    const nombre = (tipoAlarma || '').toString();
+
+    // Coincidencia exacta con los estáticos
+    if (alarmasExcluir.includes(nombre)) return true;
+
+    // "falso positivo" en cualquier parte del nombre resuelto O del summary crudo.
+    // Mirar también el summary es imprescindible: antes estas alarmas se filtraban de
+    // rebote (el nombre no se encontraba en la planilla y quedaba como
+    // "Alarma desconocida [... Falso positivo ...]"). Al resolverse bien el nombre,
+    // ese efecto colateral desaparece y sin este chequeo se colarían a Slack.
+    const textoBuscable = `${nombre} ${summaryOriginal || ''}`.toLowerCase();
+    return textoBuscable.includes('falso positivo');
+  },
+
+  /**
+   * Deduce cómo rotular el objeto afectado cuando el parser no lo definió.
+   * Los parsers de formatos nuevos deberían rotularlo ellos y no depender de esto.
+   */
+  _inferirEtiquetaTarget: function(target) {
+    const lowerTarget = (target || '').toString().toLowerCase();
+
+    if (lowerTarget.startsWith('esx') || lowerTarget.includes('host')) return 'Host';
+    if (lowerTarget.startsWith('cl-') || lowerTarget.includes('cluster')) return 'Cluster';
+    if (lowerTarget.startsWith('ds-') || lowerTarget.includes('datastore')) return 'Datastore';
+    return 'Recurso Afectado';
+  },
+
+  _formatearAlarmaPorTipo: function(tipoAlarma, summaryResto, target, description) {
+    if (this._debeExcluirse(tipoAlarma)) {
       return { incluir: false };
     }
 
@@ -83,16 +228,7 @@ const AlarmProcessor = {
     }
 
     if (resultado.incluir && !resultado.etiquetaTarget && resultado.nuevoTarget) {
-      const lowerTarget = resultado.nuevoTarget.toLowerCase();
-      if (lowerTarget.startsWith('esx') || lowerTarget.includes('host')) {
-        resultado.etiquetaTarget = 'Host';
-      } else if (lowerTarget.startsWith('cl-') || lowerTarget.includes('cluster')) {
-        resultado.etiquetaTarget = 'Cluster';
-      } else if (lowerTarget.startsWith('ds-') || lowerTarget.includes('datastore')) {
-        resultado.etiquetaTarget = 'Datastore';
-      } else {
-        resultado.etiquetaTarget = 'Recurso Afectado';
-      }
+      resultado.etiquetaTarget = this._inferirEtiquetaTarget(resultado.nuevoTarget);
     }
 
     return resultado;
@@ -176,6 +312,9 @@ const AlarmProcessor = {
       const etiqueta = origen.etiquetaTarget || 'Target';
       return {
         matcheada: true,
+        // El ID viaja aparte del log: el log está escrito para Slack (con markdown) y el
+        // cierre en Jira necesita el dato limpio, sin tener que rasparlo de un texto.
+        idExcepcion: regla.id,
         log: `Alarma silenciada por Excepción ID: *${regla.id}* | Cliente: ${cliente} | Alarma: ${tipoAlarma} | ${etiqueta}: ${origen.target || 'N/A'}`
       };
     }
