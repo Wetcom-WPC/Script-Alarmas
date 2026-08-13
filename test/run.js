@@ -134,7 +134,24 @@ function main() {
   const http = require('./http.test').correr();
   console.log(`${http.total - http.fallos}/${http.total} casos ok`);
 
-  const totalFallos = fallos + exc.fallos + dedup.fallos + entorno.fallos + cierre.fallos + fechas.fallos + tools.fallos + http.fallos;
+  console.log('\n── MessageFormatter (Slack / HTML) ──');
+  const formatter = require('./messageFormatter.test').correr();
+  console.log(`${formatter.total - formatter.fallos}/${formatter.total} casos ok`);
+
+  console.log('\n── DataRepository (armado de mapas) ──');
+  const repo = require('./dataRepository.test').correr();
+  console.log(`${repo.total - repo.fallos}/${repo.total} casos ok`);
+
+  console.log('\n── WebApp (validación de borrador) ──');
+  const webapp = require('./webapp.test').correr();
+  console.log(`${webapp.total - webapp.fallos}/${webapp.total} casos ok`);
+
+  console.log('\n── Limpieza de excepciones vencidas ──');
+  const limpieza = require('./limpieza.test').correr();
+  console.log(`${limpieza.total - limpieza.fallos}/${limpieza.total} casos ok`);
+
+  const totalFallos = fallos + exc.fallos + dedup.fallos + entorno.fallos + cierre.fallos + fechas.fallos + tools.fallos + http.fallos
+    + formatter.fallos + repo.fallos + webapp.fallos + limpieza.fallos;
   if (totalFallos > 0) {
     console.error(`\n${totalFallos} caso(s) con diferencias.`);
     process.exit(1);

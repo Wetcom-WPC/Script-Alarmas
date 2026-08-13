@@ -27,8 +27,8 @@ Cada punto indica archivo y línea. El estado se actualiza a medida que se resue
 | 12 | 🟡 Diseño | `DriveApp.getFileById` acepta cualquier ID | ✅ v10.8.0 |
 | 13 | 🟡 Diseño | Ninguna llamada HTTP tiene reintento | ✅ v10.8.0 (parcial, ver nota) |
 | 14 | 🟡 Diseño | El token de Jira ahora tiene permisos de escritura | ⬜ (ya contemplado por el equipo, fuera del código) |
-| 15 | 🔵 Tests | `MessageFormatter` sin cobertura | ⬜ |
-| 16 | 🔵 Tests | `DataRepository`, `Tools` y `WebApp` sin cobertura | ⬜ |
+| 15 | 🔵 Tests | `MessageFormatter` sin cobertura | ✅ v10.9.0 |
+| 16 | 🔵 Tests | `DataRepository`, `Tools` y `WebApp` sin cobertura | ✅ v10.9.0 (parcial, ver nota) |
 | 17–22 | ⚪ Menores | Varios | ⬜ |
 
 ---
@@ -349,25 +349,63 @@ cuenta de servicio en Jira). No requiere cambios acá.
 
 ## 🔵 Cobertura de tests
 
-### 15. `MessageFormatter` no está testeado ⬜
+### 15. `MessageFormatter` no está testeado ✅
+
+**Resuelto en:** v10.9.0 — `test/messageFormatter.test.js` (20 casos).
 
 Los golden congelan la salida de `AlarmProcessor` (la estructura `mensajesProcesados`), no
 el mensaje de Slack final. **El string que efectivamente se publica no lo verifica nadie.**
 Toda la lógica de indentación, agrupado por cobertura, rangos de fecha y ocultamiento de
-"Desconocido" está sin red.
+"Desconocido" estaba sin red.
 
 Es el módulo con más lógica condicional del proyecto y el único cuyo output ve el cliente.
 
+**Resuelto:** se llama a `generarMensaje` / `generarCorreoGuardiaHTML` directamente con
+estructuras `mensajesProcesados` armadas a mano (sin pasar por `AlarmProcessor`), y se
+verifica el string resultante. Cubre: saludo `@wpc` vs `@pod<N>`, el párrafo de cierre
+compartido, los 4 niveles de indentación (vCenter/Cluster/Target/detalle) con y sin
+Cluster, el ocultamiento de "Desconocido"/"no encontrado", los bloques separados por
+cobertura vs el agrupado dentro de la misma cobertura, el partido de summaries
+multilínea, los 4 formatos de `_crearMensajeFecha` (fecha única, mismo minuto tras
+truncar segundos, rango dentro del día, rango entre días), `_escapeHTML` y el escapado
+del nombre del cliente en el HTML de guardia. De paso quedó confirmado que
+`generarMensaje` no revienta sin `CacheService`/`DriveApp` disponibles (el intento de
+generar el link de borrador está bien encapsulado en su propio try/catch).
+
 ---
 
-### 16. Sin cobertura: `DataRepository`, `Tools` y `WebApp` ⬜
+### 16. Sin cobertura: `DataRepository`, `Tools` y `WebApp` ✅ (parcial, ver nota)
+
+**Resuelto en:** v10.9.0.
 
 `_parseExcepciones` interpreta fechas y horas con varias ramas (Date, string, vacío) y es el
 corazón del vencimiento de reglas. `limpiarExcepcionesVencidas` **borra filas de la
-planilla**. Ninguno tiene un solo test.
+planilla**. Ninguno tenía un solo test.
 
-`DataRepository` y `Tools` tocan `SpreadsheetApp`, pero la lógica de fechas es pura y se
-puede extraer — que es además lo que resolvería el punto 4.
+**Resuelto**, con un tercer tipo de sandbox nuevo en `test/harness.js`
+(`crearSandboxHojas`, con un doble mutable de `SpreadsheetApp`) para poder ejercitar código
+que lee/escribe hojas de cálculo sin tocar Sheets real:
+
+- `test/dataRepository.test.js` (7 casos): `_createMap`, `_crearMapaPods`,
+  `_parseCorreosEntorno` (columna B vs C según entorno) y `_parseExcepciones` (defaults,
+  delegación en `Fechas.interpretarVencimiento`, filas sin ID).
+- `test/limpieza.test.js` (7 casos): `Tools.limpiarExcepcionesVencidas` — la función que
+  la propia auditoría marcó como la más riesgosa por borrar filas sin vuelta atrás.
+  Cubre el caso central (recorrer de abajo hacia arriba sin saltear filas al borrar en el
+  medio), reglas sin fecha que nunca vencen, la hoja `"Excepciones"` vieja (sin sufijo de
+  POD) que debe ignorarse, y varias hojas de POD procesándose de forma independiente.
+- `test/webapp.test.js` (6 casos): `_esPayloadBorradorValido`, la validación agregada en
+  el punto 12.
+
+**Lo que quedó afuera, a propósito:** `doGet`/`doPost`/`_generarBorrador` en sí (integran
+`GmailApp`, `DriveApp`, `CacheService` y `HtmlService` reales) y
+`Tools.limpiarBorradoresViejos` (usa `DriveApp`, y es una limpieza de caché de baja
+severidad — un archivo trashado de más no pierde información real, a diferencia de borrar
+una fila de la planilla). Mockear las cuatro APIs de Google para un test de integración de
+`WebApp.js` completo no parecía tener buena relación esfuerzo/valor frente a testear
+directamente la parte con lógica real (la validación). `DataRepository.obtenerMapeos()`
+tampoco se testea end-to-end: se prefirió cubrir sus cuatro funciones internas, que es
+donde vive toda la lógica no trivial.
 
 ---
 
@@ -397,11 +435,6 @@ del refactor son la razón por la que se pudo mover todo eso sin romper el forma
 ## Orden sugerido para lo que queda
 
 Punto 1 quedó cerrado sin implementar (decisión del equipo). Punto 14 quedó fuera de
-alcance (ya contemplado por el equipo, por fuera del código). Puntos 2 a 13 ya están
-resueltos. Queda por cobertura de tests y hallazgos menores:
-
-1. **Punto 15** — `MessageFormatter` sin tests. Con el punto 9 resuelto (`_agruparPorCombinacion`
-   extraída), ahora es más fácil de testear aislado que antes.
-2. **Punto 16** — cobertura de `DataRepository`, `Tools` (parcialmente cubierto ya por
-   `test/tools.test.js` y `test/fechas.test.js`) y `WebApp.js`.
-3. Los menores 17-22, por oportunidad.
+alcance (ya contemplado por el equipo, por fuera del código). Puntos 2 a 13 y 15-16 ya
+están resueltos (con el detalle de alcance parcial anotado en 13 y 16). Sólo quedan los
+hallazgos ⚪ menores (17-22), por oportunidad — ninguno es urgente.

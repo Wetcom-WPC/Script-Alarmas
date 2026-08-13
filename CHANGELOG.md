@@ -4,6 +4,17 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y el proyecto se adhiere a [Semantic Versioning](https://semver.org/).
 
+## [10.9.0] - 2026-08-11
+
+### Added
+- **Cobertura de Tests para `MessageFormatter`, `DataRepository`, `Tools` y `WebApp`** (AUDITORIA.md, puntos 15-16):
+  - `test/messageFormatter.test.js` (20 casos): testea el string final que se publica (Slack y el HTML de guardia), no sólo la estructura intermedia. Indentación (vCenter/Cluster/Target/detalle), ocultamiento de "Desconocido", bloques por cobertura, los 4 formatos de rango de fecha, `_escapeHTML` y el escapado del nombre del cliente en el correo.
+  - `test/dataRepository.test.js` (7 casos) y `test/limpieza.test.js` (7 casos, para `Tools.limpiarExcepcionesVencidas` — la función que borra filas de la planilla sin vuelta atrás).
+  - `test/webapp.test.js` (6 casos) para `_esPayloadBorradorValido`.
+  - Nuevo tipo de sandbox en `test/harness.js` (`crearSandboxHojas`) con un doble mutable de `SpreadsheetApp`, para poder testear código que lee/escribe hojas de cálculo.
+  - Quedan fuera a propósito: `doGet`/`doPost`/`_generarBorrador` de punta a punta (integran Gmail/Drive/Cache/HtmlService reales) y `Tools.limpiarBorradoresViejos` (usa DriveApp, severidad baja). Ver la nota de alcance en AUDITORIA.md punto 16.
+  - Suite total: 136/136.
+
 ## [10.8.0] - 2026-08-11
 
 ### Changed

@@ -30,7 +30,12 @@ const MODULOS = [
   'core/parsers/LegacyVCenterParser.js',
   'core/parsers/AlarmParserRegistry.js',
   'core/AlarmProcessor.js',
-  'utils/MessageFormatter.js'
+  'utils/MessageFormatter.js',
+  // Los métodos de éstos que se testean acá (armado de mapas, validación de payload) no
+  // tocan SpreadsheetApp/DriveApp/etc. — sólo las funciones que sí lo hacen quedan afuera
+  // de lo que los tests llaman (ver DataRepository.obtenerMapeos, WebApp._generarBorrador).
+  'config/DataRepository.js',
+  'WebApp.js'
 ];
 
 function crearSandbox() {
@@ -133,4 +138,77 @@ function crearSandboxServicios(responder, propiedades, modulosExtra) {
   return { contexto, logs, llamadas, obtener };
 }
 
-module.exports = { crearSandbox, crearSandboxServicios, MODULOS };
+/** Fabrica una hoja falsa mínima, mutable, al estilo Sheet de Apps Script. */
+function hojaFalsa(nombre, filasIniciales) {
+  let datos = filasIniciales.map(fila => fila.slice());
+
+  return {
+    getName: () => nombre,
+    getLastRow: () => datos.length,
+    getDataRange: () => ({ getValues: () => datos.map(fila => fila.slice()) }),
+    // row/col son 1-based, como en la API real.
+    getRange: (row, col, numRows, numCols) => ({
+      getValues: () => {
+        const out = [];
+        for (let i = 0; i < numRows; i++) {
+          const fila = datos[row - 1 + i] || [];
+          out.push(fila.slice(col - 1, col - 1 + numCols));
+        }
+        return out;
+      }
+    }),
+    deleteRow: (row) => { datos.splice(row - 1, 1); },
+    /** Sólo para que el test pueda inspeccionar el estado final. No existe en la API real. */
+    _filasActuales: () => datos.map(fila => fila.slice())
+  };
+}
+
+/**
+ * Sandbox para código que lee/escribe la planilla (SpreadsheetApp), como
+ * `Tools.limpiarExcepcionesVencidas` o `DataRepository.obtenerMapeos`.
+ *
+ * Tampoco se mezcla con los otros dos sandboxes: acá SpreadsheetApp es justamente lo que se
+ * quiere ejercitar, así que UrlFetchApp/DriveApp/PropertiesService quedan prohibidos con el
+ * mismo criterio que en `crearSandboxServicios`.
+ *
+ * @param {Array<{nombre: string, filas: Array<Array>}>} hojasDef - una entrada por hoja,
+ *        `filas` incluye la fila de encabezado en el índice 0, como llega de la API real.
+ * @param {string[]} [modulosExtra] - módulos a cargar además de Config.js.
+ */
+function crearSandboxHojas(hojasDef, modulosExtra) {
+  const logs = [];
+  const hojas = hojasDef.map(h => hojaFalsa(h.nombre, h.filas));
+
+  const spreadsheetFalso = {
+    getSheets: () => hojas,
+    getSheetByName: (nombre) => hojas.find(h => h.getName() === nombre) || null
+  };
+
+  const sandbox = {
+    Logger: { log: (msg) => logs.push(String(msg)) },
+    console,
+    SpreadsheetApp: { getActiveSpreadsheet: () => spreadsheetFalso },
+    UrlFetchApp: new Proxy({}, { get() { throw new Error('UrlFetchApp no debe usarse en este sandbox'); } }),
+    DriveApp: new Proxy({}, { get() { throw new Error('DriveApp no debe usarse en este sandbox'); } }),
+    PropertiesService: new Proxy({}, { get() { throw new Error('PropertiesService no debe usarse en este sandbox'); } })
+  };
+  sandbox.globalThis = sandbox;
+
+  const contexto = vm.createContext(sandbox);
+
+  ['config/Config.js'].concat(modulosExtra || ['utils/Fechas.js', 'utils/Http.js', 'config/DataRepository.js', 'utils/Tools.js']).forEach(rel => {
+    const abs = path.join(RAIZ, rel);
+    const codigo = fs.readFileSync(abs, 'utf8');
+    try {
+      vm.runInContext(codigo, contexto, { filename: rel });
+    } catch (e) {
+      throw new Error(`Error cargando ${rel}: ${e.message}`);
+    }
+  });
+
+  const obtener = (nombre) => vm.runInContext(`typeof ${nombre} !== 'undefined' ? ${nombre} : undefined`, contexto);
+
+  return { contexto, logs, hojas, obtener };
+}
+
+module.exports = { crearSandbox, crearSandboxServicios, crearSandboxHojas, MODULOS };
