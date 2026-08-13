@@ -4,6 +4,18 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y el proyecto se adhiere a [Semantic Versioning](https://semver.org/).
 
+## [10.8.0] - 2026-08-11
+
+### Changed
+- **`MessageFormatter` sin Duplicación entre Slack y HTML:** el armado de `groupByCombination` (parseo del origen, agrupado por vCenter/cluster/summaries) estaba copiado entero entre `_generarDetalleAlarmas` (Slack) y `_generarDetalleAlarmasHTML`, y ya habían llegado a divergir una vez sin que nadie lo decidiera (`_agruparPorCobertura` sólo se enganchaba en el camino de Slack). Se extrajo `_agruparPorCombinacion(entradasTarget)`, usada por los dos. Sin cambios de salida: los 31 golden tests lo verifican.
+- **Clave de Agrupación de Alarmas, Explícita:** `AlarmProcessor` usaba `JSON.stringify(origen)` directo como clave de `mensajesProcesados`, dependiendo implícitamente de que todos los parsers construyeran el objeto `origen` con las claves en el mismo orden. Nueva `_claveOrigen(origen)` ordena las claves antes de serializar, así deja de ser un efecto colateral del orden de inserción.
+- **`doGet` ya no muta nada:** creaba un borrador de Gmail dentro de una request GET (que debería ser segura de repetir). Ahora `doGet` sólo devuelve una página que se reenvía sola como POST hacia el nuevo `doPost`, que es quien llama a `GmailApp.createDraft`.
+- **Borrador de Correo, Validado antes de Usarse:** `WebApp.js` tomaba cualquier `DriveApp.getFileById(id)` sin verificar que el contenido fuera realmente un borrador generado por esta app. Nueva `_esPayloadBorradorValido()` corta con un mensaje claro si no tiene la forma esperada. De paso, `${payloadBorrador.cliente}` y `${err.message}` pasan ahora por `MessageFormatter._escapeHTML()` antes de ir al HTML de respuesta (antes se interpolaban sin escapar).
+- **Reintento en Llamadas HTTP de Sólo Lectura:** nuevo `utils/Http.js` (`conReintento` / `fetchConReintento`, con backoff simple y sin reintentar 4xx). Se usa en `JiraService.buscarAlarmas`, `JiraService.obtenerTransiciones` y `Tools._consultarFeriados` (que pasa a usar el helper compartido en vez de su reintento ad-hoc). Deliberadamente **no** se aplica a los POST que mutan estado (transicionar/comentar un ticket, publicar en Slack): un POST que tira una excepción de red pudo haber llegado igual al servidor, y reintentarlo a ciegas arriesga duplicar la acción.
+
+### Added
+- **Tests:** `test/http.test.js` (10 casos, `Http.conReintento` / `fetchConReintento`). Suite total: 100/100.
+
 ## [10.7.0] - 2026-08-11
 
 ### Fixed

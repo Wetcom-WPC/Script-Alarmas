@@ -35,7 +35,9 @@ const JiraService = {
       "muteHttpExceptions": true
     };
 
-    const response = UrlFetchApp.fetch(url, options);
+    // Es un POST en la superficie, pero un GET en espíritu: `search/jql` no muta nada en
+    // Jira, así que es seguro reintentarlo ante una falla transitoria.
+    const response = Http.fetchConReintento(() => UrlFetchApp.fetch(url, options));
     const responseCode = response.getResponseCode();
     const responseText = response.getContentText();
     const jsonResponse = JSON.parse(responseText);
@@ -87,11 +89,11 @@ const JiraService = {
   obtenerTransiciones: function(ticketKey) {
     const url = `https://${Config.JIRA_BASE_URL}/rest/api/3/issue/${encodeURIComponent(ticketKey)}/transitions`;
 
-    const response = UrlFetchApp.fetch(url, {
+    const response = Http.fetchConReintento(() => UrlFetchApp.fetch(url, {
       "method": "get",
       "headers": this._encabezados(),
       "muteHttpExceptions": true
-    });
+    }));
 
     const responseCode = response.getResponseCode();
     const responseText = response.getContentText();
@@ -148,6 +150,10 @@ const JiraService = {
       return { cerrado: false, detalle: `no hay transición de cierre disponible (¿ya está cerrado?). Ofrecidas: ${disponibles}` };
     }
 
+    // Sin reintento a propósito: este POST SÍ muta el ticket. Si la respuesta se pierde por
+    // una falla de red después de que Jira ya aplicó la transición, reintentar arriesgaría
+    // un error de "no hay esa transición disponible" enmascarando un cierre que sí ocurrió
+    // (o, peor, una transición doble si el workflow lo permitiera). Ver utils/Http.js.
     const url = `https://${Config.JIRA_BASE_URL}/rest/api/3/issue/${encodeURIComponent(ticketKey)}/transitions`;
     const response = UrlFetchApp.fetch(url, {
       "method": "post",

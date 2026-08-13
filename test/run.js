@@ -130,7 +130,11 @@ function main() {
   const tools = require('./tools.test').correr();
   console.log(`${tools.total - tools.fallos}/${tools.total} casos ok`);
 
-  const totalFallos = fallos + exc.fallos + dedup.fallos + entorno.fallos + cierre.fallos + fechas.fallos + tools.fallos;
+  console.log('\n── Reintento HTTP ──');
+  const http = require('./http.test').correr();
+  console.log(`${http.total - http.fallos}/${http.total} casos ok`);
+
+  const totalFallos = fallos + exc.fallos + dedup.fallos + entorno.fallos + cierre.fallos + fechas.fallos + tools.fallos + http.fallos;
   if (totalFallos > 0) {
     console.error(`\n${totalFallos} caso(s) con diferencias.`);
     process.exit(1);

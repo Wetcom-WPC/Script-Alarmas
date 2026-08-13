@@ -112,54 +112,68 @@ const MessageFormatter = {
     return '*Errores encontrados:*\n' + errores.map(e => `• ${e}`).join('\n') + '\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n';
   },
 
-  _generarDetalleAlarmas: function(alarmas) {
-    let detalle = "";
-    for (const alarma in alarmas) {
-      const entradasTarget = alarmas[alarma];
+  /**
+   * Agrupa las entradas de una alarma (indexadas por el string de `origen`) en combinaciones
+   * de cobertura + vCenter + cluster + etiqueta + summaries idénticos.
+   *
+   * Compartida por el render de Slack y el de HTML: antes cada uno tenía su propia copia de
+   * este bloque (~65 líneas repetidas), y ya llegaron a divergir una vez sin que nadie lo
+   * decidiera — el agrupado por cobertura (`_agruparPorCobertura`) sólo se enganchaba en el
+   * camino de Slack; en el HTML funcionaba igual de pura casualidad, porque la cobertura ya
+   * viaja dentro de `claveGrupo`. Ver AUDITORIA.md, punto 9.
+   */
+  _agruparPorCombinacion: function(entradasTarget) {
+    const groupByCombination = {};
 
-      // Agrupar por vCenter + Cluster + Summaries idénticos
-      let groupByCombination = {};
+    for (const targetStr in entradasTarget) {
+      let origen;
+      try {
+        origen = JSON.parse(targetStr);
+      } catch (e) {
+        origen = { vCenter: 'Desconocido', cluster: 'Desconocido', target: targetStr };
+      }
 
-      for (const targetStr in entradasTarget) {
-        let origen;
-        try {
-           origen = JSON.parse(targetStr);
-        } catch(e) {
-           origen = { vCenter: 'Desconocido', cluster: 'Desconocido', target: targetStr };
+      let summariesSet = new Set();
+      entradasTarget[targetStr].forEach(entry => {
+        if (entry.summaryResto !== null && entry.summaryResto !== 'N/A' && typeof entry.summaryResto === 'string') {
+          const sumVal = entry.summaryResto.toString().trim();
+          if (sumVal !== "") summariesSet.add(sumVal);
         }
+      });
 
-        let summariesSet = new Set();
-        entradasTarget[targetStr].forEach(entry => {
-          if (entry.summaryResto !== null && entry.summaryResto !== 'N/A' && typeof entry.summaryResto === 'string') {
-            const sumVal = entry.summaryResto.toString().trim();
-            if (sumVal !== "") summariesSet.add(sumVal);
-          }
-        });
+      const sortedSummaries = Array.from(summariesSet).sort();
+      const claveGrupo = JSON.stringify({
+        cobertura: origen.cobertura || '',
+        vCenter: origen.vCenter,
+        cluster: origen.cluster,
+        etiquetaTarget: origen.etiquetaTarget || 'Host/Target',
+        summaries: sortedSummaries
+      });
 
-        const sortedSummaries = Array.from(summariesSet).sort();
-        const claveGrupo = JSON.stringify({
+      if (!groupByCombination[claveGrupo]) {
+        groupByCombination[claveGrupo] = {
           cobertura: origen.cobertura || '',
           vCenter: origen.vCenter,
           cluster: origen.cluster,
           etiquetaTarget: origen.etiquetaTarget || 'Host/Target',
-          summaries: sortedSummaries
-        });
-
-        if (!groupByCombination[claveGrupo]) {
-          groupByCombination[claveGrupo] = {
-            cobertura: origen.cobertura || '',
-            vCenter: origen.vCenter,
-            cluster: origen.cluster,
-            etiquetaTarget: origen.etiquetaTarget || 'Host/Target',
-            summaries: sortedSummaries,
-            targets: [],
-            entries: []
-          };
-        }
-
-        groupByCombination[claveGrupo].targets.push(origen.target);
-        groupByCombination[claveGrupo].entries.push(...entradasTarget[targetStr]);
+          summaries: sortedSummaries,
+          targets: [],
+          entries: []
+        };
       }
+
+      groupByCombination[claveGrupo].targets.push(origen.target);
+      groupByCombination[claveGrupo].entries.push(...entradasTarget[targetStr]);
+    }
+
+    return groupByCombination;
+  },
+
+  _generarDetalleAlarmas: function(alarmas) {
+    let detalle = "";
+    for (const alarma in alarmas) {
+      const entradasTarget = alarmas[alarma];
+      const groupByCombination = this._agruparPorCombinacion(entradasTarget);
 
       // Una misma alarma puede llegar bajo coberturas distintas (9x5 y 24x7). Se emite un
       // bloque por cobertura, con su propio título y su propia fecha, porque son contratos
@@ -288,49 +302,7 @@ const MessageFormatter = {
     
     for (const alarma in alarmas) {
       const entradasTarget = alarmas[alarma];
-
-      let groupByCombination = {};
-
-      for (const targetStr in entradasTarget) {
-        let origen;
-        try {
-           origen = JSON.parse(targetStr);
-        } catch(e) {
-           origen = { vCenter: 'Desconocido', cluster: 'Desconocido', target: targetStr };
-        }
-        
-        let summariesSet = new Set();
-        entradasTarget[targetStr].forEach(entry => {
-          if (entry.summaryResto !== null && entry.summaryResto !== 'N/A' && typeof entry.summaryResto === 'string') {
-            const sumVal = entry.summaryResto.toString().trim();
-            if (sumVal !== "") summariesSet.add(sumVal);
-          }
-        });
-
-        const sortedSummaries = Array.from(summariesSet).sort();
-        const claveGrupo = JSON.stringify({
-          cobertura: origen.cobertura || '',
-          vCenter: origen.vCenter,
-          cluster: origen.cluster,
-          etiquetaTarget: origen.etiquetaTarget || 'Host/Target',
-          summaries: sortedSummaries
-        });
-
-        if (!groupByCombination[claveGrupo]) {
-          groupByCombination[claveGrupo] = {
-            cobertura: origen.cobertura || '',
-            vCenter: origen.vCenter,
-            cluster: origen.cluster,
-            etiquetaTarget: origen.etiquetaTarget || 'Host/Target',
-            summaries: sortedSummaries,
-            targets: [],
-            entries: []
-          };
-        }
-
-        groupByCombination[claveGrupo].targets.push(origen.target);
-        groupByCombination[claveGrupo].entries.push(...entradasTarget[targetStr]);
-      }
+      const groupByCombination = this._agruparPorCombinacion(entradasTarget);
 
       for (const key in groupByCombination) {
         const group = groupByCombination[key];

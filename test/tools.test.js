@@ -54,7 +54,7 @@ function ejecutar(fecha, respuestasFeriados) {
   };
 
   const propiedades = { SLACK_WEBHOOK_LOGS_TESTING: 'https://hooks.slack.com/TESTING' };
-  const { obtener, logs } = crearSandboxServicios(responder, propiedades, ['services/SlackService.js', 'utils/Tools.js']);
+  const { obtener, logs } = crearSandboxServicios(responder, propiedades, ['utils/Http.js', 'services/SlackService.js', 'utils/Tools.js']);
   const Tools = obtener('Tools');
   if (!Tools) throw new Error('No se pudo cargar Tools en el sandbox.');
 

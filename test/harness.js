@@ -21,6 +21,7 @@ const RAIZ = path.join(__dirname, '..');
 const MODULOS = [
   'config/Config.js',
   'utils/Fechas.js',
+  'utils/Http.js',
   'core/AlarmParser.js',
   'core/AlarmFormatters.js',
   'core/parsers/AlarmEnvelope.js',
@@ -117,7 +118,7 @@ function crearSandboxServicios(responder, propiedades, modulosExtra) {
 
   const contexto = vm.createContext(sandbox);
 
-  ['config/Config.js'].concat(modulosExtra || ['services/JiraService.js']).forEach(rel => {
+  ['config/Config.js'].concat(modulosExtra || ['utils/Http.js', 'services/JiraService.js']).forEach(rel => {
     const abs = path.join(RAIZ, rel);
     const codigo = fs.readFileSync(abs, 'utf8');
     try {

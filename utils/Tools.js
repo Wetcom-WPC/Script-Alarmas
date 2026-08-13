@@ -120,27 +120,27 @@ const Tools = {
   },
 
   /**
-   * Pide el listado de feriados del año a la API pública, con UN reintento ante una falla de
-   * red, un HTTP distinto de 200 o un JSON ilegible: así un error momentáneo no se trata
-   * igual que una caída real del servicio. Devuelve null si los dos intentos fallan.
+   * Pide el listado de feriados del año a la API pública, con UN reintento (vía
+   * `Http.conReintento`) ante una falla de red, un HTTP distinto de 200 o un JSON ilegible:
+   * así un error momentáneo no se trata igual que una caída real del servicio. Devuelve
+   * null si los dos intentos fallan.
    */
   _consultarFeriados: function(año) {
     const url = `https://api.argentinadatos.com/v1/feriados/${año}`;
 
-    for (let intento = 1; intento <= 2; intento++) {
-      try {
+    try {
+      const feriados = Http.conReintento(() => {
         const response = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
-        if (response.getResponseCode() === 200) {
-          const feriados = JSON.parse(response.getContentText());
-          Logger.log(`API de feriados consultada para el año ${año} (intento ${intento}).`);
-          return feriados;
+        if (response.getResponseCode() !== 200) {
+          throw new Error(`HTTP ${response.getResponseCode()}`);
         }
-        Logger.log(`Error API feriados HTTP ${response.getResponseCode()} (intento ${intento}).`);
-      } catch (e) {
-        Logger.log(`Error consultando/parseando feriados (intento ${intento}): ${e.message}`);
-      }
+        return JSON.parse(response.getContentText());
+      });
+      Logger.log(`API de feriados consultada para el año ${año}.`);
+      return feriados;
+    } catch (e) {
+      Logger.log(`Error consultando feriados para el año ${año} (tras reintentar): ${e.message}`);
+      return null;
     }
-
-    return null;
   }
 };

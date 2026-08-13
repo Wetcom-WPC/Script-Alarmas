@@ -99,7 +99,7 @@ const AlarmProcessor = {
     });
 
     conservadas.forEach(c => {
-      this._agruparMensaje(c.pod, c.cliente, c.alarma, JSON.stringify(c.origen), c.created, mensajesProcesados, c.warnings, c.summaryResto);
+      this._agruparMensaje(c.pod, c.cliente, c.alarma, this._claveOrigen(c.origen), c.created, mensajesProcesados, c.warnings, c.summaryResto);
     });
 
     return { mensajesProcesados, errores, alarmasSilenciadas, duplicadasDescartadas: descartadas };
@@ -164,6 +164,21 @@ const AlarmProcessor = {
     });
 
     return { conservadas, descartadas };
+  },
+
+  /**
+   * Clave con la que `mensajesProcesados[pod][cliente][alarma]` agrupa por origen
+   * (vCenter/cluster/target/etiqueta/cobertura). MessageFormatter la vuelve a parsear con
+   * `JSON.parse` para leer esos campos al renderizar.
+   *
+   * Con `JSON.stringify(origen)` a secas, dos objetos con las mismas claves pero insertadas
+   * en otro orden (ej: un parser que agrega `etiquetaTarget` antes de `cobertura` y otro que
+   * lo hace después) generan strings distintos y la misma alarma termina en dos grupos en
+   * vez de uno, sin que nadie lo haya decidido así. Ordenar las claves antes de serializar
+   * lo vuelve una decisión explícita en vez de un efecto colateral del orden de inserción.
+   */
+  _claveOrigen: function(origen) {
+    return JSON.stringify(origen, Object.keys(origen).sort());
   },
 
   _obtenerClaveCliente: function(key, mapaClientes) {

@@ -21,12 +21,12 @@ Cada punto indica archivo y línea. El estado se actualiza a medida que se resue
 | 6 | 🟠 Media | `_crearMensajeFecha` muta las fechas que recibe | ✅ v10.7.0 |
 | 7 | 🟠 Media | Lookups sin `hasOwnProperty` sobre datos de planilla | ✅ v10.7.0 |
 | 8 | 🟠 Media | La guardia no se envía si la API de feriados falla | ✅ v10.7.0 |
-| 9 | 🟡 Diseño | ~130 líneas duplicadas entre render Slack y HTML | ⬜ |
-| 10 | 🟡 Diseño | El origen viaja como string JSON usado de clave | ⬜ |
-| 11 | 🟡 Diseño | `doGet` provoca un efecto de lado | ⬜ |
-| 12 | 🟡 Diseño | `DriveApp.getFileById` acepta cualquier ID | ⬜ |
-| 13 | 🟡 Diseño | Ninguna llamada HTTP tiene reintento | ⬜ |
-| 14 | 🟡 Diseño | El token de Jira ahora tiene permisos de escritura | ⬜ |
+| 9 | 🟡 Diseño | ~130 líneas duplicadas entre render Slack y HTML | ✅ v10.8.0 |
+| 10 | 🟡 Diseño | El origen viaja como string JSON usado de clave | ✅ v10.8.0 |
+| 11 | 🟡 Diseño | `doGet` provoca un efecto de lado | ✅ v10.8.0 |
+| 12 | 🟡 Diseño | `DriveApp.getFileById` acepta cualquier ID | ✅ v10.8.0 |
+| 13 | 🟡 Diseño | Ninguna llamada HTTP tiene reintento | ✅ v10.8.0 (parcial, ver nota) |
+| 14 | 🟡 Diseño | El token de Jira ahora tiene permisos de escritura | ⬜ (ya contemplado por el equipo, fuera del código) |
 | 15 | 🔵 Tests | `MessageFormatter` sin cobertura | ⬜ |
 | 16 | 🔵 Tests | `DataRepository`, `Tools` y `WebApp` sin cobertura | ⬜ |
 | 17–22 | ⚪ Menores | Varios | ⬜ |
@@ -242,9 +242,9 @@ recuperación tras un solo fallo).
 
 ## 🟡 Diseño y mantenibilidad
 
-### 9. ~130 líneas duplicadas entre el render de Slack y el de HTML ⬜
+### 9. ~130 líneas duplicadas entre el render de Slack y el de HTML ✅
 
-**Dónde:** `utils/MessageFormatter.js:116-217` y `utils/MessageFormatter.js:276-415`
+**Dónde:** `utils/MessageFormatter.js` · **Resuelto en:** v10.8.0
 
 Repiten completo el armado de `groupByCombination`: mismo parseo del origen, mismo `Set` de
 summaries, misma `claveGrupo`, mismo relleno de `targets` / `entries`.
@@ -253,70 +253,86 @@ La consecuencia ya se materializó: al agregar los bloques por cobertura, `_agru
 se enganchó **sólo en el camino de Slack**. Funciona igual en el HTML por casualidad (la
 cobertura ya está dentro de `claveGrupo`), pero es una divergencia que nadie eligió.
 
-Es el refactor con mejor relación beneficio/riesgo del proyecto: extraer el agrupado a una
-función y dejar que cada render se ocupe sólo de pintar. Conviene hacerlo junto con el
-punto 15.
+**Resuelto** tal cual se sugería: se extrajo `_agruparPorCombinacion(entradasTarget)`,
+usada ahora por `_generarDetalleAlarmas` (Slack) y `_generarDetalleAlarmasHTML`. Cada
+render se ocupa sólo de pintar. Los 31 golden tests verifican que la salida no cambió un
+carácter.
 
 ---
 
-### 10. El origen viaja como string JSON usado de clave de objeto ⬜
+### 10. El origen viaja como string JSON usado de clave de objeto ✅
 
-**Dónde:** `core/AlarmProcessor.js:102` y `utils/MessageFormatter.js:127`
+**Dónde:** `core/AlarmProcessor.js` · **Resuelto en:** v10.8.0
 
-Se hace `JSON.stringify(c.origen)` para usarlo como clave de `mensajesProcesados`, y del
-otro lado se vuelve a parsear con un `try/catch` que fabrica un objeto falso si falla.
+Se hacía `JSON.stringify(c.origen)` para usarlo como clave de `mensajesProcesados`, y del
+otro lado se volvía a parsear con un `try/catch` que fabrica un objeto falso si falla.
 
-Funciona porque el objeto siempre se construye con las mismas claves en el mismo orden.
-Pero es una invariante implícita que nadie declara: agregar un campo condicional a `origen`
-cambia la clave y por lo tanto el agrupado. Ya ocurre hoy con `cobertura` —una alarma 9x5 y
-una 24x7 no se agrupan, que es lo que queremos, pero se logró por un efecto lateral de la
-serialización y no por una decisión explícita.
+Funcionaba porque el objeto siempre se construía con las mismas claves en el mismo orden.
+Pero era una invariante implícita que nadie declaraba: dos parsers que arman `origen` con
+las mismas claves en distinto orden (ej. uno agrega `etiquetaTarget` antes de `cobertura`,
+otro después) generaban strings distintos y la misma alarma terminaba en dos grupos.
 
----
-
-### 11. `doGet` provoca un efecto de lado ⬜
-
-**Dónde:** `WebApp.js:62`
-
-Crea un borrador de Gmail dentro de un GET. Un GET debería ser seguro de repetir.
-
-Lo modera bastante la configuración: `access: DOMAIN` y `executeAs: USER_ACCESSING` en
-`appsscript.json` impiden que un bot anónimo (el unfurl de Slack, por ejemplo) ejecute algo.
-El riesgo remanente es acotado: un prefetch del navegador de un usuario del dominio, o una
-recarga de pestaña, genera borradores repetidos en su propia casilla. Molesto, no grave.
+**Resuelto:** nueva `AlarmProcessor._claveOrigen(origen)`, que ordena las claves antes de
+serializar (`JSON.stringify(origen, Object.keys(origen).sort())`). Mismo contenido, orden
+determinístico — deja de depender de en qué orden cada parser construyó el objeto.
 
 ---
 
-### 12. `DriveApp.getFileById(e.parameter.id)` acepta cualquier ID ⬜
+### 11. `doGet` provoca un efecto de lado ✅
 
-**Dónde:** `WebApp.js:17`, con el contenido inyectado sin escapar en `WebApp.js:47`
+**Dónde:** `WebApp.js` · **Resuelto en:** v10.8.0
 
-El parámetro va sin validar. Con `executeAs: USER_ACCESSING` el alcance se limita a lo que
-ese usuario ya puede leer, así que no hay escalada de privilegios —de ahí que quede en
-amarillo—. Aun así, no hay ninguna verificación de que el archivo sea un borrador generado
-por esta aplicación.
+Creaba un borrador de Gmail dentro de un GET. Un GET debería ser seguro de repetir.
 
-En la misma función, `${payloadBorrador.cliente}` (`WebApp.js:71`) y `${err.message}`
-(`WebApp.js:80`) se interpolan sin escapar en el HTML de respuesta, mientras que
-`MessageFormatter` sí tiene `_escapeHTML()` y lo usa con disciplina. Es una inconsistencia
-dentro del mismo proyecto.
+**Resuelto:** `doGet` ya no crea nada. Devuelve una página que se reenvía sola como POST
+(un `<form>` con `onload="submit()"`) hacia el nuevo `doPost`, que es quien de verdad llama
+a `GmailApp.createDraft`. Un prefetch del navegador o una recarga de pestaña ya no generan
+un borrador de más.
 
 ---
 
-### 13. Ninguna llamada HTTP tiene reintento ⬜
+### 12. `DriveApp.getFileById(e.parameter.id)` acepta cualquier ID ✅
 
-Ni Jira, ni Slack, ni la API de feriados. Un 502 transitorio en `buscarAlarmas()` lanza
-excepción y **aborta la corrida completa**: no se informa nada, no se cierra nada.
+**Dónde:** `WebApp.js` · **Resuelto en:** v10.8.0
 
-Con el cierre automático esto pesa más que antes: se hacen hasta 3 llamadas por alarma
-silenciada (listar transiciones, transicionar, comentar), todas sin reintento.
+El parámetro iba sin validar. Con `executeAs: USER_ACCESSING` el alcance se limita a lo que
+ese usuario ya puede leer, así que no había escalada de privilegios —de ahí que quedara en
+amarillo—. Aun así, no había ninguna verificación de que el archivo fuera un borrador
+generado por esta aplicación.
 
-**Sugerencia:** un helper `_fetchConReintento(url, options, intentos)` con back-off simple,
-usado por `JiraService` y `SlackService`.
+**Resuelto:**
+- Nueva `_esPayloadBorradorValido(payload)`: si el JSON leído no tiene la forma mínima
+  esperada (`cliente` y `html` como string), se corta con un mensaje claro en vez de
+  intentar armar un correo con datos ajenos.
+- `${payloadBorrador.cliente}` y `${err.message}` ahora pasan por
+  `MessageFormatter._escapeHTML()` antes de ir al HTML de respuesta, igual que ya se hacía
+  en el resto de `MessageFormatter`.
 
 ---
 
-### 14. El token de Jira ahora tiene permisos de escritura ⬜
+### 13. Ninguna llamada HTTP tenía reintento ✅ (parcial, a propósito)
+
+**Resuelto en:** v10.8.0 — nuevo `utils/Http.js`.
+
+Ni Jira, ni Slack, ni la API de feriados. Un 502 transitorio en `buscarAlarmas()` lanzaba
+excepción y **abortaba la corrida completa**: no se informaba nada, no se cerraba nada.
+
+**Resuelto, con alcance acotado a propósito:** `Http.fetchConReintento` (reintenta ante una
+excepción de red o un HTTP 429/5xx; un 4xx es determinístico y se devuelve tal cual) se usa
+en las llamadas de **sólo lectura**: `JiraService.buscarAlarmas`, `JiraService.obtenerTransiciones`
+y `Tools._consultarFeriados` (que ya tenía su propio reintento ad-hoc desde el punto 8;
+ahora usa el helper compartido).
+
+**Deliberadamente NO se aplicó a los POST que mutan estado** (transicionar un ticket,
+comentarlo, publicar en Slack): un POST que tira una excepción de red pudo haber llegado
+igual al servidor, y reintentarlo a ciegas arriesga duplicar la acción — el mismo motivo por
+el que `JiraService.comentarTicketInterno` ya evita reintentar tras un resultado incierto.
+Generalizar el reintento a esos POST sin resolver antes la idempotencia sería cambiar un
+problema (falla silenciosa) por otro peor (duplicados en Jira o en el canal de Slack).
+
+---
+
+### 14. El token de Jira ahora tiene permisos de escritura 🔒 fuera de alcance (ya contemplado por el equipo)
 
 No es un defecto del código, es un cambio en el radio de impacto que conviene tener
 presente. Hasta v10.4.0, comprometer `JIRA_AUTH_TOKEN` permitía leer tickets. Desde v10.5.0
@@ -325,6 +341,9 @@ cualquiera con permiso de edición sobre el proyecto de Apps Script.
 
 **Sugerencia:** confirmar que la cuenta de servicio tenga permisos acotados a los proyectos
 de alarmas y a nada más.
+
+**Decisión del equipo (11/08/2026):** ya contemplado por fuera del código (permisos de la
+cuenta de servicio en Jira). No requiere cambios acá.
 
 ---
 
@@ -377,10 +396,12 @@ del refactor son la razón por la que se pudo mover todo eso sin romper el forma
 
 ## Orden sugerido para lo que queda
 
-Punto 1 quedó cerrado sin implementar (decisión del equipo). Puntos 2, 3, 4, 5, 6, 7 y 8 ya
-están resueltos. Queda por diseño/mantenibilidad y cobertura:
+Punto 1 quedó cerrado sin implementar (decisión del equipo). Punto 14 quedó fuera de
+alcance (ya contemplado por el equipo, por fuera del código). Puntos 2 a 13 ya están
+resueltos. Queda por cobertura de tests y hallazgos menores:
 
-1. **Puntos 9 y 15 juntos** — extraer el agrupado de `MessageFormatter` (Slack/HTML) y
-   taparlo con tests en el mismo movimiento; es el refactor con mejor relación
-   beneficio/riesgo que queda.
-2. El resto (10 a 14, 16, y los menores 17-22), por oportunidad.
+1. **Punto 15** — `MessageFormatter` sin tests. Con el punto 9 resuelto (`_agruparPorCombinacion`
+   extraída), ahora es más fácil de testear aislado que antes.
+2. **Punto 16** — cobertura de `DataRepository`, `Tools` (parcialmente cubierto ya por
+   `test/tools.test.js` y `test/fechas.test.js`) y `WebApp.js`.
+3. Los menores 17-22, por oportunidad.
