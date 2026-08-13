@@ -4,6 +4,18 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y el proyecto se adhiere a [Semantic Versioning](https://semver.org/).
 
+## [10.7.0] - 2026-08-11
+
+### Fixed
+- **Vencimiento de Excepciones Duplicado (podía divergir):** `DataRepository._parseExcepciones` (decide si una regla sigue vigente) y `Tools.limpiarExcepcionesVencidas` (decide si la fila se borra de la planilla) tenían el mismo bloque de ~25 líneas copiado. Un fix aplicado en uno solo podía dejar al motor de Excepciones y a la limpieza automática tomando decisiones distintas sobre la misma regla. Se extrajo a `Fechas.interpretarVencimiento(fechaVal, horaVal)` (`utils/Fechas.js`), función pura, y ambos la consumen ahora.
+- **Regla de Excepción con Typo Fallaba en Silencio:** la comparación de `cliente` y `tipoAlarma` en `AlarmProcessor._verificarExcepcion` era exacta y sensible a mayúsculas — `banco macro` no matcheaba `Banco Macro`, y la regla quedaba sin efecto para siempre sin ningún aviso. Ahora se normalizan igual que el POD (mayúsculas + trim).
+- **`_crearMensajeFecha` Mutaba las Fechas que Recibía:** `entry.created.setSeconds(0, 0)` modifica el objeto original en vez de devolver uno nuevo. Inocuo hoy (poner los segundos en cero es idempotente), pero la guardia formatea las mismas entradas dos veces (Slack y HTML) y era una trampa para el día que alguien necesitara los segundos originales. Ahora se clona con `new Date(entry.created.getTime())` antes de truncar.
+- **Lookups sin `hasOwnProperty` sobre Datos de Planilla:** un valor como `constructor` en la columna de "Tipos de Alarmas" o en "Clientes" podía resolver contra el prototipo de `Object` en vez de dar "no encontrado". Los mapas que arma `DataRepository` (`mapaClientes`, `mapaPodsClientes`, `mapaCorreos*`) se construyen ahora con `Object.create(null)`, y el lookup de `AlarmFormatters.manejadores[tipoAlarma]` en `AlarmProcessor` quedó atrás de un `hasOwnProperty` explícito.
+- **La Guardia se Omitía si la API de Feriados Fallaba:** `esFinDeSemanaOFeriado` asumía día hábil (no enviaba la guardia) ante cualquier falla de `api.argentinadatos.com`, sin más rastro que una línea en el Logger. Ahora reintenta una vez (para no tratar un error momentáneo como una caída real) y, si sigue fallando, asume que el día NO es hábil —se envía la guardia igual— y lo avisa por Slack vía `SlackService.enviarLogTexto` (nuevo). Es la falla más segura: una guardia de más un día hábil es molesta, una guardia de menos un feriado real es el problema que esta función existe para evitar.
+
+### Added
+- **Tests:** `test/fechas.test.js` (5 casos, `Fechas.interpretarVencimiento`) y `test/tools.test.js` (6 casos, reintento y aviso por Slack de `esFinDeSemanaOFeriado`). 3 casos nuevos en `test/excepciones.test.js` para la normalización de cliente/tipo de alarma. Suite total: 90/90.
+
 ## [10.6.1] - 2026-08-11
 
 ### Changed

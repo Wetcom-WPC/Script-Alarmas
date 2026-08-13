@@ -46,13 +46,16 @@ const DataRepository = {
   },
 
   _createMap: function(dataArray) {
-    // Omite la primera fila (encabezados) y mapea Col 1 -> Col 2
+    // Omite la primera fila (encabezados) y mapea Col 1 -> Col 2.
+    // Object.create(null) en vez de {}: la clave sale de una planilla editable por
+    // cualquiera, y un valor como "constructor" o "toString" no debe resolver contra
+    // el prototipo de Object en los lookups que hace quien consume este mapa.
     return dataArray.slice(1).reduce((map, row) => {
       if (row[0] && row[1]) {
         map[row[0].toString().trim()] = row[1].toString().trim();
       }
       return map;
-    }, {});
+    }, Object.create(null));
   },
 
   /**
@@ -68,7 +71,7 @@ const DataRepository = {
         map[row[0].toString().trim()] = row[2].toString().trim();
       }
       return map;
-    }, {});
+    }, Object.create(null));
   },
 
   _parseCorreosEntorno: function(dataArray) {
@@ -83,7 +86,7 @@ const DataRepository = {
         }
       }
       return map;
-    }, {});
+    }, Object.create(null));
   },
 
   _parseExcepciones: function(dataArray, podName) {
@@ -93,33 +96,9 @@ const DataRepository = {
       const id = row[0];
       if (!id) return null; // Saltar filas vacías
       
-      let validaHasta = null;
       const fechaVal = row[6]; // Índice corregido (Antes 7)
       const horaVal = row[7];  // Índice corregido (Antes 8)
-      
-      if (fechaVal && fechaVal !== "") {
-        let fechaBase = new Date();
-        if (fechaVal instanceof Date) {
-          fechaBase = new Date(fechaVal.getTime());
-        } else {
-          const f = new Date(fechaVal);
-          if (!isNaN(f.getTime())) fechaBase = f;
-        }
-        
-        if (horaVal && horaVal !== "") {
-          if (horaVal instanceof Date) {
-            fechaBase.setHours(horaVal.getHours(), horaVal.getMinutes(), 0, 0);
-          } else if (typeof horaVal === 'string') {
-            const partes = horaVal.split(':');
-            if (partes.length >= 2) {
-              fechaBase.setHours(parseInt(partes[0], 10), parseInt(partes[1], 10), 0, 0);
-            }
-          }
-        } else {
-          fechaBase.setHours(23, 59, 59, 999);
-        }
-        validaHasta = fechaBase;
-      }
+      const validaHasta = Fechas.interpretarVencimiento(fechaVal, horaVal);
 
       return {
         id: id.toString().trim(),

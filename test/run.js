@@ -122,7 +122,15 @@ function main() {
   const cierre = require('./cierreJira.test').correr();
   console.log(`${cierre.total - cierre.fallos}/${cierre.total} casos ok`);
 
-  const totalFallos = fallos + exc.fallos + dedup.fallos + entorno.fallos + cierre.fallos;
+  console.log('\n── Interpretación de vencimiento (Fechas) ──');
+  const fechas = require('./fechas.test').correr();
+  console.log(`${fechas.total - fechas.fallos}/${fechas.total} casos ok`);
+
+  console.log('\n── Guardia: fin de semana / feriados ──');
+  const tools = require('./tools.test').correr();
+  console.log(`${tools.total - tools.fallos}/${tools.total} casos ok`);
+
+  const totalFallos = fallos + exc.fallos + dedup.fallos + entorno.fallos + cierre.fallos + fechas.fallos + tools.fallos;
   if (totalFallos > 0) {
     console.error(`\n${totalFallos} caso(s) con diferencias.`);
     process.exit(1);

@@ -13,14 +13,14 @@ Cada punto indica archivo y línea. El estado se actualiza a medida que se resue
 
 | # | Severidad | Hallazgo | Estado |
 |---|---|---|---|
-| 1 | 🔴 Alta | Techo de 100 tickets sin paginación ni aviso | ⬜ |
+| 1 | 🔴 Alta | Techo de 100 tickets sin paginación ni aviso | ⬜ (no se va a resolver, ver nota) |
 | 2 | 🔴 Alta | Logs de excepciones siempre al canal de testing | ✅ v10.6.0 |
 | 3 | 🔴 Alta | `ENTORNO` como constante en archivo versionado | ✅ v10.6.0 |
-| 4 | 🟠 Media | Lógica de vencimiento de excepciones duplicada | ⬜ |
-| 5 | 🟠 Media | Regla de excepción con typo falla en silencio | ⬜ |
-| 6 | 🟠 Media | `_crearMensajeFecha` muta las fechas que recibe | ⬜ |
-| 7 | 🟠 Media | Lookups sin `hasOwnProperty` sobre datos de planilla | ⬜ |
-| 8 | 🟠 Media | La guardia no se envía si la API de feriados falla | ⬜ |
+| 4 | 🟠 Media | Lógica de vencimiento de excepciones duplicada | ✅ v10.7.0 |
+| 5 | 🟠 Media | Regla de excepción con typo falla en silencio | ✅ v10.7.0 |
+| 6 | 🟠 Media | `_crearMensajeFecha` muta las fechas que recibe | ✅ v10.7.0 |
+| 7 | 🟠 Media | Lookups sin `hasOwnProperty` sobre datos de planilla | ✅ v10.7.0 |
+| 8 | 🟠 Media | La guardia no se envía si la API de feriados falla | ✅ v10.7.0 |
 | 9 | 🟡 Diseño | ~130 líneas duplicadas entre render Slack y HTML | ⬜ |
 | 10 | 🟡 Diseño | El origen viaja como string JSON usado de clave | ⬜ |
 | 11 | 🟡 Diseño | `doGet` provoca un efecto de lado | ⬜ |
@@ -35,7 +35,7 @@ Cada punto indica archivo y línea. El estado se actualiza a medida que se resue
 
 ## 🔴 Bloqueantes
 
-### 1. `buscarAlarmas()` tiene un techo duro de 100 tickets y descarta el resto en silencio ⬜
+### 1. `buscarAlarmas()` tiene un techo duro de 100 tickets y descarta el resto en silencio 🔒 cerrado, sin implementar
 
 **Dónde:** `services/JiraService.js:28`
 
@@ -50,7 +50,9 @@ Agravante: el `README.md` afirmaba "Realiza consultas paginadas a la API REST v3
 La documentación describía algo que el código no hace, así que nadie iría a buscar ahí.
 
 **Decisión del equipo (11/08/2026):** limitación contemplada. Rara vez hay más de 20
-alarmas activas, así que 100 sobra por amplio margen.
+alarmas activas, así que 100 sobra por amplio margen. Se evaluó la propuesta de abajo y se
+decidió **no implementarla**: no vale la complejidad para un caso que no ocurre en la
+práctica. Punto cerrado, sin cambios de código.
 
 **Propuesta de bajo costo (pendiente de aprobación).** La API nueva `/search/jql` pagina
 con `nextPageToken`, así que el bucle es corto y acotado:
@@ -127,9 +129,9 @@ fallara. Toda la decisión pasa ahora por `Config.esProduccion()`.
 
 ## 🟠 Correctitud
 
-### 4. La lógica de vencimiento de excepciones está duplicada y puede divergir ⬜
+### 4. La lógica de vencimiento de excepciones está duplicada y puede divergir ✅
 
-**Dónde:** `config/DataRepository.js:81-103` y `utils/Tools.js:65-87`
+**Dónde:** `config/DataRepository.js` y `utils/Tools.js` · **Resuelto en:** v10.7.0
 
 El mismo bloque de ~25 líneas, copiado, para interpretar `Fecha hasta` + `Hora hasta`.
 
@@ -137,17 +139,15 @@ Uno decide si una regla silencia; el otro decide si se borra la fila. Si alguien
 caso borde en uno solo, se llega a un estado donde `limpiarExcepcionesVencidas` borra una
 regla que el motor todavía considera vigente, o deja viva una que ya no aplica.
 
-Agravante: el trigger de limpieza **elimina filas de la planilla**. El error no se deshace.
-
-**Sugerencia:** extraer una función pura `interpretarVencimiento(fechaVal, horaVal)` a un
-único lugar y consumirla desde ambos. Como es pura, se puede testear sin `SpreadsheetApp`,
-lo que además avanza el punto 16.
+Se extrajo tal cual se sugería: `Fechas.interpretarVencimiento(fechaVal, horaVal)` en
+`utils/Fechas.js`, función pura, testeada sola (`test/fechas.test.js`, 5 casos) y consumida
+desde `DataRepository._parseExcepciones` y `Tools.limpiarExcepcionesVencidas`.
 
 ---
 
-### 5. Una regla de excepción con un typo falla en silencio, para siempre ⬜
+### 5. Una regla de excepción con un typo falla en silencio, para siempre ✅
 
-**Dónde:** `core/AlarmProcessor.js:246-249`
+**Dónde:** `core/AlarmProcessor.js` · **Resuelto en:** v10.7.0
 
 ```js
 if (regla.cliente !== 'TODOS' && regla.cliente.trim() !== cliente.trim()) continue;
@@ -164,14 +164,22 @@ depuración del POD el 11/08.
 **Inconsistencia asociada:** el POD sí se compara normalizado (`toUpperCase()`); el cliente
 y el tipo de alarma, no. Son criterios distintos para campos del mismo formulario.
 
-**Sugerencia:** normalizar los tres igual, y emitir un warning cuando una regla vigente no
-matcheó ningún ticket en la corrida (candidato a aparecer en el canal de logs).
+**Resuelto:** cliente y tipo de alarma ahora se normalizan igual que el POD
+(`trim().toUpperCase()`) en `_verificarExcepcion`. Cubierto por 3 casos nuevos en
+`test/excepciones.test.js`.
+
+**Lo que quedó afuera (deliberado):** la idea original también proponía avisar cuando una
+regla vigente no matcheó ningún ticket en la corrida. Se descartó: una regla legítima no
+matchea nada en la mayoría de las corridas simplemente porque no llegó ninguna alarma que
+silenciar — eso no es un typo, es el caso normal. Implementarlo generaría un falso positivo
+en casi todas las corridas exitosas, no una señal útil. La normalización sola cubre el caso
+real que motivó el punto.
 
 ---
 
-### 6. `_crearMensajeFecha` muta las fechas que recibe ⬜
+### 6. `_crearMensajeFecha` muta las fechas que recibe ✅
 
-**Dónde:** `utils/MessageFormatter.js:246`
+**Dónde:** `utils/MessageFormatter.js` · **Resuelto en:** v10.7.0
 
 ```js
 .map(entry => (entry && entry.created) ? new Date(entry.created.setSeconds(0, 0)) : null)
@@ -185,14 +193,15 @@ El efecto hoy es inocuo —pone los segundos en cero, y repetirlo da lo mismo—
 porque es una trampa: el día que alguien necesite los segundos, o compare fechas después de
 formatear, el bug aparecerá lejos de acá.
 
-**Sugerencia:** `new Date(entry.created.getTime())` y recién ahí `setSeconds`.
+**Resuelto:** clona con `new Date(entry.created.getTime())` antes de truncar los segundos.
 
 ---
 
-### 7. Lookups sin `hasOwnProperty` sobre datos que vienen de la planilla ⬜
+### 7. Lookups sin `hasOwnProperty` sobre datos que vienen de la planilla ✅
 
-**Dónde:** `core/AlarmProcessor.js:224` (`AlarmFormatters.manejadores[tipoAlarma]`), y el
-mismo patrón en `mapaAlarmas`, `mapaClientes` y `mapaPodsClientes`.
+**Dónde:** `core/AlarmProcessor.js` (`AlarmFormatters.manejadores[tipoAlarma]`) y
+`config/DataRepository.js` (`mapaClientes`, `mapaPodsClientes`, `mapaCorreos*`) ·
+**Resuelto en:** v10.7.0
 
 Si en la columna B de la planilla apareciera un nombre como `toString` o `constructor`, el
 lookup devolvería la función heredada del prototipo, se la invocaría como si fuera un
@@ -200,25 +209,34 @@ formateador, `resultado.incluir` quedaría `undefined` y la alarma se descartar�
 explicación.
 
 Es improbable en la práctica y se registra como tal. Pero el patrón "diccionario indexado
-por texto de una planilla" aparece en cuatro lugares y la corrección es una línea en cada
-uno (`Object.prototype.hasOwnProperty.call(...)`, o construir los mapas con
-`Object.create(null)`).
+por texto de una planilla" aparece en cuatro lugares.
+
+**Resuelto** con la alternativa de bajo costo que ya proponía el hallazgo: los mapas que
+arma `DataRepository` (`_createMap`, `_crearMapaPods`, `_parseCorreosEntorno`) se construyen
+ahora con `Object.create(null)`, así que no tienen prototipo del que heredar nada. El único
+lookup que no pasa por esos mapas —`AlarmFormatters.manejadores[tipoAlarma]`, que es un
+objeto autoral, no uno armado desde la planilla— quedó atrás de un
+`Object.prototype.hasOwnProperty.call(...)` explícito en el sitio de consumo.
 
 ---
 
-### 8. `esFinDeSemanaOFeriado` falla hacia el lado que oculta el problema ⬜
+### 8. `esFinDeSemanaOFeriado` falla hacia el lado que oculta el problema ✅
 
-**Dónde:** `utils/Tools.js:128` y `utils/Tools.js:132`
+**Dónde:** `utils/Tools.js` · **Resuelto en:** v10.7.0
 
-Si la API de feriados no responde, devuelve `false`. Consecuencia: un 25 de mayo con
-`api.argentinadatos.com` caído, `disparadorGuardia()` decide que es día hábil y **no envía
-la guardia**. Nadie recibe el reporte y el único registro es una línea en el Logger.
+Si la API de feriados no respondía, devolvía `false`. Consecuencia: un 25 de mayo con
+`api.argentinadatos.com` caído, `disparadorGuardia()` decidía que era día hábil y **no
+enviaba la guardia**. Nadie recibía el reporte y el único registro era una línea en el
+Logger.
 
-Es una decisión defendible (mejor no spamear que spamear), pero es una dependencia externa
-no cacheada, consultada en cada corrida, cuyo modo de falla es "no hacer nada".
-
-**Sugerencia:** cachear el listado anual de feriados en `CacheService` o en una Script
-Property, y avisar a Slack cuando la consulta falle en vez de seguir de largo.
+**Resuelto**, con una variante a la sugerencia original — decisión explícita del equipo
+(11/08/2026): no cachear el listado anual (ensuciaría Script Properties o CacheService sin
+necesidad real), y en cambio invertir directamente el lado del fallo. Ahora
+`_consultarFeriados` reintenta la llamada una vez (para no tratar un error momentáneo igual
+que una caída real) y, si las dos fallan, `esFinDeSemanaOFeriado` **asume que el día NO es
+hábil** —se envía la guardia igual— y lo avisa por Slack con `SlackService.enviarLogTexto`
+(nuevo, mismo webhook de logs). Cubierto por `test/tools.test.js` (6 casos, incluida la
+recuperación tras un solo fallo).
 
 ---
 
@@ -359,10 +377,10 @@ del refactor son la razón por la que se pudo mover todo eso sin romper el forma
 
 ## Orden sugerido para lo que queda
 
-1. **Punto 1**, si se decide implementar la paginación — es lo único que puede hacer
-   desaparecer alarmas sin dejar rastro.
-2. **Puntos 4 y 5** — los otros dos que pueden hacer perder una alarma sin que nadie se
-   entere.
-3. **Puntos 9 y 15 juntos** — extraer el agrupado y taparlo con tests en el mismo
-   movimiento.
-4. El resto, por oportunidad.
+Punto 1 quedó cerrado sin implementar (decisión del equipo). Puntos 2, 3, 4, 5, 6, 7 y 8 ya
+están resueltos. Queda por diseño/mantenibilidad y cobertura:
+
+1. **Puntos 9 y 15 juntos** — extraer el agrupado de `MessageFormatter` (Slack/HTML) y
+   taparlo con tests en el mismo movimiento; es el refactor con mejor relación
+   beneficio/riesgo que queda.
+2. El resto (10 a 14, 16, y los menores 17-22), por oportunidad.

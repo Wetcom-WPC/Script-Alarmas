@@ -242,7 +242,15 @@ const MessageFormatter = {
 
   _crearMensajeFecha: function(entries) {
     const fechas = entries
-      .map(entry => (entry && entry.created) ? new Date(entry.created.setSeconds(0, 0)) : null)
+      .map(entry => {
+        if (!entry || !entry.created) return null;
+        // Clonar antes de truncar: entry.created es la misma referencia que usan otros
+        // consumidores (ej. el mismo dato se formatea para Slack y para el HTML de guardia),
+        // y setSeconds() muta el objeto original en vez de devolver uno nuevo.
+        const fecha = new Date(entry.created.getTime());
+        fecha.setSeconds(0, 0);
+        return fecha;
+      })
       .filter(date => date !== null && !isNaN(date.getTime()));
 
     if (fechas.length === 0) return 'Fecha no disponible';

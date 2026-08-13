@@ -221,7 +221,9 @@ const AlarmProcessor = {
 
     let resultado;
     // Implementación de Patrón Strategy: Busca el formateador, si no existe devuelve por defecto.
-    if (AlarmFormatters.manejadores[tipoAlarma]) {
+    // hasOwnProperty explícito: tipoAlarma sale de la hoja "Tipos de Alarmas", y un valor
+    // como "constructor" no debe resolver contra el prototipo de Object.
+    if (Object.prototype.hasOwnProperty.call(AlarmFormatters.manejadores, tipoAlarma)) {
       resultado = AlarmFormatters.manejadores[tipoAlarma](summaryResto, target, description);
     } else {
       resultado = { incluir: true, nuevoTarget: target, nuevoSummary: summaryResto };
@@ -263,11 +265,16 @@ const AlarmProcessor = {
       const p2 = regla.pod.toString().toUpperCase().replace(/POD/g, '').trim();
       if (regla.pod !== 'TODOS' && p1 !== p2) continue;
       
-      // 3. Validar Cliente
-      if (regla.cliente !== 'TODOS' && regla.cliente.trim() !== cliente.trim()) continue;
-      
-      // 4. Validar Tipo Alarma
-      if (regla.tipoAlarma !== 'TODAS' && regla.tipoAlarma.trim() !== tipoAlarma.trim()) continue;
+      // 3. Validar Cliente (normalizado como el POD: mayúsculas/minúsculas y espacios de
+      // más no deberían hacer fallar una regla cargada a mano)
+      const cliente1 = cliente.toString().trim().toUpperCase();
+      const cliente2 = regla.cliente.toString().trim().toUpperCase();
+      if (regla.cliente !== 'TODOS' && cliente1 !== cliente2) continue;
+
+      // 4. Validar Tipo Alarma (misma normalización)
+      const tipo1 = tipoAlarma.toString().trim().toUpperCase();
+      const tipo2 = regla.tipoAlarma.toString().trim().toUpperCase();
+      if (regla.tipoAlarma !== 'TODAS' && tipo1 !== tipo2) continue;
       
       // 5. Validar Campo y Condición
       if (regla.campo !== 'CUALQUIERA' && regla.valor !== '') {

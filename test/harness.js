@@ -20,6 +20,7 @@ const RAIZ = path.join(__dirname, '..');
  */
 const MODULOS = [
   'config/Config.js',
+  'utils/Fechas.js',
   'core/AlarmParser.js',
   'core/AlarmFormatters.js',
   'core/parsers/AlarmEnvelope.js',
@@ -76,12 +77,15 @@ function crearSandbox() {
  * que queremos observar, así que se reemplaza por un doble que registra cada llamada y
  * devuelve las respuestas que le indique el test.
  *
- * @param {Function} responder    - recibe (url, options) y devuelve { code, body }.
+ * @param {Function} responder     - recibe (url, options) y devuelve { code, body }.
  * @param {Object}   [propiedades] - Script Properties simuladas. Las claves no declaradas
  *                                   devuelven un valor ficticio; para simular una property
  *                                   ausente hay que declararla explícitamente en null.
+ * @param {string[]} [modulosExtra] - Módulos de servicio a cargar además de Config.js.
+ *                                    Por defecto JiraService, para no romper a quien ya
+ *                                    llamaba a esta función antes de que existiera este parámetro.
  */
-function crearSandboxServicios(responder, propiedades) {
+function crearSandboxServicios(responder, propiedades, modulosExtra) {
   const logs = [];
   const llamadas = [];
   const props = propiedades || {};
@@ -113,7 +117,7 @@ function crearSandboxServicios(responder, propiedades) {
 
   const contexto = vm.createContext(sandbox);
 
-  ['config/Config.js', 'services/JiraService.js'].forEach(rel => {
+  ['config/Config.js'].concat(modulosExtra || ['services/JiraService.js']).forEach(rel => {
     const abs = path.join(RAIZ, rel);
     const codigo = fs.readFileSync(abs, 'utf8');
     try {

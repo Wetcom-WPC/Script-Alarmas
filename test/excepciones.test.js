@@ -118,6 +118,27 @@ const CASOS = [
     mappingsExtra: PLANILLA_CON_POD,
     regla: regla({ pod: 'WPC', campo: 'Host', condicion: 'Igual a', valor: 'esxi15.balanzcapital.net.ar' }),
     silenciada: false
+  },
+  {
+    // SBM-26371 → cliente "Banco Macro" (mapaClientes.SBM). Antes, un typo de mayúsculas
+    // al cargar la regla a mano la dejaba sin efecto para siempre, en silencio.
+    nombre: 'Cliente con mayúsculas/minúsculas distintas igual silencia (normalizado)',
+    fixture: 'vrops-host-multilinea',
+    regla: regla({ cliente: 'banco macro', campo: 'Host', condicion: 'Contiene', valor: 'esx07-prod' }),
+    silenciada: true
+  },
+  {
+    nombre: 'Cliente con espacios de más igual silencia (normalizado)',
+    fixture: 'vrops-host-multilinea',
+    regla: regla({ cliente: '  Banco Macro  ', campo: 'Host', condicion: 'Contiene', valor: 'esx07-prod' }),
+    silenciada: true
+  },
+  {
+    // El nombre resuelto de esa alarma es "Alarma de desconexión de host" (mapaAlarmas).
+    nombre: 'Tipo de alarma con mayúsculas/minúsculas distintas igual silencia (normalizado)',
+    fixture: 'vrops-host-multilinea',
+    regla: regla({ tipoAlarma: 'alarma de desconexión de host', campo: 'Host', condicion: 'Contiene', valor: 'esx07-prod' }),
+    silenciada: true
   }
 ];
 
