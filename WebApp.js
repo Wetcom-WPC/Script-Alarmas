@@ -78,7 +78,7 @@ function _generarBorrador(e) {
     const fechaAsunto = Utilities.formatDate(new Date(), tz, "dd/MM/yyyy");
 
     // El asunto contendrá la alarma principal y el nombre del cliente
-    const asuntoCorreo = `${payloadBorrador.alarmaPricipal} - WETCOM - ${payloadBorrador.cliente} - ${fechaAsunto}`;
+    const asuntoCorreo = `${payloadBorrador.alarmaPrincipal} - WETCOM - ${payloadBorrador.cliente} - ${fechaAsunto}`;
 
     // Armar el cuerpo corporativo
     // Nota: Dejamos el espacio final libre para que el operador pueda insertar su firma corporativa de Gmail.
@@ -93,7 +93,7 @@ function _generarBorrador(e) {
       </div>`;
 
     // Construir lista de CC dinámicamente
-    let correosCC = "wpc@wetcom.com";
+    let correosCC = Config.EMAIL_FALLBACK;
     if (payloadBorrador.pod) {
       const p = payloadBorrador.pod.toString().toLowerCase().replace(/\s+/g, '');
       if (p !== "wpc" && !p.includes("desconocido")) {

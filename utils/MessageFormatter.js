@@ -31,7 +31,7 @@ const MessageFormatter = {
             const payloadBorrador = {
               cliente: cliente,
               pod: pod,
-              alarmaPricipal: Object.keys(alarmasCliente)[0] || "Incidentes Varios",
+              alarmaPrincipal: Object.keys(alarmasCliente)[0] || "Incidentes Varios",
               html: htmlBorrador
             };
             

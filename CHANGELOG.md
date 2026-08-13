@@ -4,6 +4,20 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y el proyecto se adhiere a [Semantic Versioning](https://semver.org/).
 
+## [10.10.0] - 2026-08-13
+
+Cierra AUDITORIA.md. Últimos hallazgos menores (17, 18, 19, 21). Los puntos 20 y 22 quedan
+sin resolver por decisión del equipo (contemplados, no urgentes).
+
+### Fixed
+- **`alarmaPricipal` → `alarmaPrincipal`:** typo en el contrato de datos entre `MessageFormatter.js` (arma el JSON del borrador) y `WebApp.js` (lo lee). Corregido en ambos lados a la vez.
+- **`"wpc@wetcom.com"` hardcodeado en `WebApp.js`:** reemplazado por `Config.EMAIL_FALLBACK`, que ya tenía el mismo valor.
+- **Error de procesamiento con numeración de fila de Excel inexistente:** `AlarmProcessor` citaba `(Equiv. Fila N)`, retrocompatibilidad con una época en la que las alarmas venían de una planilla. Ahora identifica al ticket por su `key` real y, sólo si falta, por su posición en el lote (descrita como tal, no como una fila).
+- **`Target:?` sin delimitador de palabra:** la regex de `AlarmParser.extraerOrigen` matcheaba `SubTarget:` como si fuera la etiqueta `Target:`, tomando el valor de una etiqueta ajena. Se agregó `(?:^|\s)` antes de la etiqueta, el mismo criterio que ya usaba `LegacyVCenterParser` para `Description:`.
+
+### Added
+- **Tests:** `test/erroresProcesamiento.test.js` (3 casos) y `test/alarmParser.test.js` (3 casos, incluida la reproducción específica del bug de "SubTarget:"). Suite total: 142/142.
+
 ## [10.9.0] - 2026-08-11
 
 ### Added

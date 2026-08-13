@@ -178,7 +178,10 @@ const AlarmParser = {
       origen.cluster = clusterMatch[1].trim();
     }
 
-    const targetMatch = description.match(new RegExp('Target:?\\s*(.*?)' + this.CORTE_VALOR, 'i'));
+    // (?:^|\s) antes de "Target": sin esto, "SubTarget:" matchea igual (la etiqueta es una
+    // subcadena de otra palabra), y el valor de la etiqueta ajena se toma como si fuera el
+    // target real.
+    const targetMatch = description.match(new RegExp('(?:^|\\s)Target:?\\s*(.*?)' + this.CORTE_VALOR, 'i'));
     if (targetMatch && targetMatch[1].trim() !== '') {
       origen.target = targetMatch[1].trim();
     } else if (summary) {

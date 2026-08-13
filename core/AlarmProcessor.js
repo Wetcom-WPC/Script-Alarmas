@@ -85,10 +85,13 @@ const AlarmProcessor = {
         });
 
       } catch (err) {
-        // index + 2 por retrocompatibilidad con logs antiguos basados en row (fila de excel)
-        const filaLog = index + 2;
-        errores.push(`Ticket ${ticket.key} (Equiv. Fila ${filaLog}): ${err.message}`);
-        Logger.log(`Error procesando ticket ${ticket.key}: ${err.message}`);
+        // Las alarmas ya no vienen de una planilla, sino de la API de Jira: no hay ninguna
+        // fila real a la que referirse. Se identifica por la key del ticket y, sólo si ni
+        // eso está disponible (el propio caso de "Clave faltante"), por su posición en el
+        // lote — nunca como si fuera un número de fila de Excel.
+        const identificador = ticket.key || `elemento #${index + 1} del lote`;
+        errores.push(`Ticket ${identificador}: ${err.message}`);
+        Logger.log(`Error procesando ticket ${identificador}: ${err.message}`);
       }
     });
 

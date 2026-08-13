@@ -29,7 +29,12 @@ Cada punto indica archivo y línea. El estado se actualiza a medida que se resue
 | 14 | 🟡 Diseño | El token de Jira ahora tiene permisos de escritura | ⬜ (ya contemplado por el equipo, fuera del código) |
 | 15 | 🔵 Tests | `MessageFormatter` sin cobertura | ✅ v10.9.0 |
 | 16 | 🔵 Tests | `DataRepository`, `Tools` y `WebApp` sin cobertura | ✅ v10.9.0 (parcial, ver nota) |
-| 17–22 | ⚪ Menores | Varios | ⬜ |
+| 17 | ⚪ Menor | `alarmaPricipal` mal escrito (contrato de datos) | ✅ v10.10.0 |
+| 18 | ⚪ Menor | `"wpc@wetcom.com"` hardcodeado en `WebApp.js` | ✅ v10.10.0 |
+| 19 | ⚪ Menor | Error con numeración de fila de Excel inexistente | ✅ v10.10.0 |
+| 20 | ⚪ Menor | `_debeExcluirse` matchea "falso positivo" como subcadena | ⬜ (contemplado por el equipo, no se va a resolver) |
+| 21 | ⚪ Menor | `Target:?` sin delimitador de palabra (matchea `SubTarget:`) | ✅ v10.10.0 |
+| 22 | ⚪ Menor | Encabezado `POD WPC` redundante | ⬜ (contemplado por el equipo, no se va a resolver) |
 
 ---
 
@@ -411,14 +416,53 @@ donde vive toda la lógica no trivial.
 
 ## ⚪ Menores
 
-| # | Hallazgo | Dónde |
-|---|---|---|
-| 17 | `alarmaPricipal` está mal escrito. Es un contrato de datos: hay que cambiarlo en los dos lados a la vez | `MessageFormatter.js:34`, `WebApp.js:39` |
-| 18 | `"wpc@wetcom.com"` hardcodeado existiendo `Config.EMAIL_FALLBACK` con el mismo valor | `WebApp.js:53` |
-| 19 | El error `(Equiv. Fila ${index + 2})` arrastra la numeración de una planilla que ya no es la fuente de datos | `AlarmProcessor.js:89` |
-| 20 | `_debeExcluirse` busca `"falso positivo"` como subcadena del summary completo: una alarma legítima que mencione la frase se descarta sin aviso | `AlarmProcessor.js:200` |
-| 21 | `Target:?` no tiene delimitador de palabra; una etiqueta como `SubTarget:` matchearía | `AlarmParser.js:181` |
-| 22 | Encabezado `POD WPC` redundante: el prefijo se agrega siempre aunque WPC no sea un POD numerado | `MessageFormatter.js:11` |
+### 17. `alarmaPricipal` estaba mal escrito ✅
+
+**Resuelto en:** v10.10.0. Era un contrato de datos entre `MessageFormatter.js` (quien
+escribe el JSON del borrador) y `WebApp.js` (quien lo lee) — se corrigió en los dos lados a
+la vez, a `alarmaPrincipal`.
+
+---
+
+### 18. `"wpc@wetcom.com"` hardcodeado en `WebApp.js` ✅
+
+**Resuelto en:** v10.10.0. Existiendo `Config.EMAIL_FALLBACK` con el mismo valor, no había
+motivo para repetirlo suelto. `correosCC` ahora arranca de `Config.EMAIL_FALLBACK`.
+
+---
+
+### 19. El error de procesamiento citaba una fila de Excel inexistente ✅
+
+**Resuelto en:** v10.10.0. `(Equiv. Fila ${index + 2})` era retrocompatibilidad con una
+época en la que las alarmas SÍ venían de una planilla; hoy vienen de la API de Jira y esa
+fila no corresponde a nada real. Ahora el error identifica al ticket por su `key` real y,
+sólo si ni siquiera eso está disponible (el caso de "Clave faltante"), por su posición en
+el lote — descrito como tal ("elemento #N del lote"), no como si fuera una fila de Excel.
+Cubierto por `test/erroresProcesamiento.test.js` (3 casos).
+
+---
+
+### 20. `_debeExcluirse` matchea "falso positivo" como subcadena ⬜
+
+**Decisión del equipo (13/08/2026):** contemplado, no se va a resolver.
+
+---
+
+### 21. `Target:?` sin delimitador de palabra ✅
+
+**Resuelto en:** v10.10.0. La regex de `AlarmParser.extraerOrigen` buscaba la etiqueta
+`Target:` sin verificar que no fuera parte de otra palabra, así que una etiqueta como
+`SubTarget:` (que no tiene nada que ver) matcheaba igual y su valor se tomaba como si fuera
+el target real de la alarma. Se agregó `(?:^|\s)` antes de `Target`, el mismo criterio que
+ya usa `LegacyVCenterParser._extraerBloqueDescription` para `Description:`. Cubierto por
+`test/alarmParser.test.js` (3 casos, incluido el de "SubTarget: ruido" seguido de la
+etiqueta real, para confirmar que se usa la real y no la falsa).
+
+---
+
+### 22. Encabezado `POD WPC` redundante ⬜
+
+**Decisión del equipo (13/08/2026):** contemplado, no se va a resolver.
 
 ---
 
@@ -432,9 +476,9 @@ del refactor son la razón por la que se pudo mover todo eso sin romper el forma
 
 ---
 
-## Orden sugerido para lo que queda
+## Estado final
 
-Punto 1 quedó cerrado sin implementar (decisión del equipo). Punto 14 quedó fuera de
-alcance (ya contemplado por el equipo, por fuera del código). Puntos 2 a 13 y 15-16 ya
-están resueltos (con el detalle de alcance parcial anotado en 13 y 16). Sólo quedan los
-hallazgos ⚪ menores (17-22), por oportunidad — ninguno es urgente.
+Auditoría cerrada. De los 22 hallazgos: 18 resueltos (2-13, 15-19, 21), 4 cerrados
+deliberadamente sin cambios de código por decisión del equipo (1: complejidad no
+justificada; 14: ya contemplado por fuera del código; 20 y 22: contemplados, no se van a
+resolver). 0 pendientes sin decisión. Suite de tests: 142/142.

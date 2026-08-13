@@ -21,7 +21,7 @@ const CASOS = [
   {
     nombre: 'Payload válido (cliente y html como string) pasa',
     correr: () => {
-      if (!validar({ cliente: 'Banco Macro', html: '<div>...</div>', pod: 'WPC', alarmaPricipal: 'Alarma X' })) {
+      if (!validar({ cliente: 'Banco Macro', html: '<div>...</div>', pod: 'WPC', alarmaPrincipal: 'Alarma X' })) {
         return 'un payload con la forma esperada debería ser válido';
       }
       return null;

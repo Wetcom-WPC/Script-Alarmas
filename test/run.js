@@ -150,8 +150,16 @@ function main() {
   const limpieza = require('./limpieza.test').correr();
   console.log(`${limpieza.total - limpieza.fallos}/${limpieza.total} casos ok`);
 
+  console.log('\n── Mensajes de error de procesamiento ──');
+  const errProc = require('./erroresProcesamiento.test').correr();
+  console.log(`${errProc.total - errProc.fallos}/${errProc.total} casos ok`);
+
+  console.log('\n── AlarmParser: extracción de Target ──');
+  const alarmParser = require('./alarmParser.test').correr();
+  console.log(`${alarmParser.total - alarmParser.fallos}/${alarmParser.total} casos ok`);
+
   const totalFallos = fallos + exc.fallos + dedup.fallos + entorno.fallos + cierre.fallos + fechas.fallos + tools.fallos + http.fallos
-    + formatter.fallos + repo.fallos + webapp.fallos + limpieza.fallos;
+    + formatter.fallos + repo.fallos + webapp.fallos + limpieza.fallos + errProc.fallos + alarmParser.fallos;
   if (totalFallos > 0) {
     console.error(`\n${totalFallos} caso(s) con diferencias.`);
     process.exit(1);
