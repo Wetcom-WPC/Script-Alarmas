@@ -60,32 +60,8 @@ const Tools = {
             const row = data[i];
             const fechaVal = row[6]; // Índice corregido (Antes 7)
             const horaVal = row[7];  // Índice corregido (Antes 8)
-            
-            let validaHasta = null;
-            if (fechaVal && fechaVal !== "") {
-              let fechaBase = new Date();
-              if (fechaVal instanceof Date) {
-                fechaBase = new Date(fechaVal.getTime());
-              } else {
-                const f = new Date(fechaVal);
-                if (!isNaN(f.getTime())) fechaBase = f;
-              }
-              
-              if (horaVal && horaVal !== "") {
-                if (horaVal instanceof Date) {
-                  fechaBase.setHours(horaVal.getHours(), horaVal.getMinutes(), 0, 0);
-                } else if (typeof horaVal === 'string') {
-                  const partes = horaVal.split(':');
-                  if (partes.length >= 2) {
-                    fechaBase.setHours(parseInt(partes[0], 10), parseInt(partes[1], 10), 0, 0);
-                  }
-                }
-              } else {
-                fechaBase.setHours(23, 59, 59, 999);
-              }
-              validaHasta = fechaBase;
-            }
-            
+            const validaHasta = this._interpretarVencimiento(fechaVal, horaVal);
+
             // Si tiene fecha de expiración y ya pasó
             if (validaHasta && validaHasta < ahora) {
               sheet.deleteRow(i + 2);
@@ -99,6 +75,60 @@ const Tools = {
     } catch(e) {
       Logger.log("Error al limpiar excepciones vencidas: " + e.message);
     }
+  },
+
+  /**
+   * Interpreta las columnas "Fecha hasta"/"Hora hasta" de una fila de Excepciones. Devuelve
+   * el instante en que la regla deja de tener efecto, o null si no vence nunca. Sin hora
+   * explícita, vence al final del día (23:59:59.999).
+   *
+   * HOTFIX 2026-08-18: si la celda de fecha llega como texto que no se puede parsear (por
+   * ejemplo "14/08/2026" guardado como texto plano en vez de fecha real -new Date() lo lee
+   * como MM/DD/YYYY inválido-), antes se caía silenciosamente a `new Date()` (hoy) como base,
+   * y la regla quedaba vigente para siempre sin importar la fecha real de la planilla
+   * (incidente Tempora_Macro / Banco Macro). Ahora se acepta también texto "DD/MM/YYYY" y,
+   * si ninguna interpretación resulta en una fecha válida, se trata como YA VENCIDA
+   * (fail-closed) en vez de "no vence nunca".
+   */
+  _interpretarVencimiento: function(fechaVal, horaVal) {
+    if (!fechaVal || fechaVal === "") return null;
+
+    const fechaBase = this._parsearFecha(fechaVal);
+    if (!fechaBase) return new Date(0);
+
+    if (horaVal && horaVal !== "") {
+      if (horaVal instanceof Date) {
+        fechaBase.setHours(horaVal.getHours(), horaVal.getMinutes(), 0, 0);
+      } else if (typeof horaVal === 'string') {
+        const partes = horaVal.split(':');
+        if (partes.length >= 2) {
+          fechaBase.setHours(parseInt(partes[0], 10), parseInt(partes[1], 10), 0, 0);
+        }
+      }
+    } else {
+      fechaBase.setHours(23, 59, 59, 999);
+    }
+
+    return fechaBase;
+  },
+
+  _parsearFecha: function(fechaVal) {
+    if (fechaVal instanceof Date) return new Date(fechaVal.getTime());
+
+    if (typeof fechaVal === 'string') {
+      const match = fechaVal.trim().match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+      if (match) {
+        const dia = parseInt(match[1], 10);
+        const mes = parseInt(match[2], 10);
+        const anio = parseInt(match[3], 10);
+        const candidato = new Date(anio, mes - 1, dia);
+        const esValida = candidato.getFullYear() === anio && candidato.getMonth() === mes - 1 && candidato.getDate() === dia;
+        return esValida ? candidato : null;
+      }
+    }
+
+    const generico = new Date(fechaVal);
+    return isNaN(generico.getTime()) ? null : generico;
   },
 
   /**
