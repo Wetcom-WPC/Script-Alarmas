@@ -145,8 +145,16 @@ caso borde en uno solo, se llega a un estado donde `limpiarExcepcionesVencidas` 
 regla que el motor todavía considera vigente, o deja viva una que ya no aplica.
 
 Se extrajo tal cual se sugería: `Fechas.interpretarVencimiento(fechaVal, horaVal)` en
-`utils/Fechas.js`, función pura, testeada sola (`test/fechas.test.js`, 5 casos) y consumida
+`utils/Fechas.js`, función pura, testeada sola (`test/fechas.test.js`, 9 casos) y consumida
 desde `DataRepository._parseExcepciones` y `Tools.limpiarExcepcionesVencidas`.
+
+**Secuela (18/08/2026, v10.10.1):** la unificación resultó clave, pero la función unificada
+arrastraba un bug que ninguna de las dos copias originales había resuelto: ante una fecha
+ilegible caía a `new Date()` (hoy) como base, así que la regla se revalidaba sola en cada
+corrida y no vencía nunca. Se detectó en producción con la excepción `Tempora_Macro`. Que el
+criterio ya estuviera en un solo lugar permitió arreglarlo una vez y que valiera para el
+matching y para la limpieza a la vez — exactamente el escenario que este punto anticipaba,
+sólo que en la dirección inversa a la temida. Ver CHANGELOG v10.10.1.
 
 ---
 
@@ -481,4 +489,8 @@ del refactor son la razón por la que se pudo mover todo eso sin romper el forma
 Auditoría cerrada. De los 22 hallazgos: 18 resueltos (2-13, 15-19, 21), 4 cerrados
 deliberadamente sin cambios de código por decisión del equipo (1: complejidad no
 justificada; 14: ya contemplado por fuera del código; 20 y 22: contemplados, no se van a
-resolver). 0 pendientes sin decisión. Suite de tests: 142/142.
+resolver). 0 pendientes sin decisión. Suite de tests: 146/146.
+
+**Posterior a la auditoría:** v10.10.1 (18/08/2026) corrigió un bug de vencimiento de
+Excepciones detectado en producción, sobre la función que había unificado el punto 4. Ver la
+secuela anotada en ese punto y el CHANGELOG.

@@ -4,6 +4,27 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y el proyecto se adhiere a [Semantic Versioning](https://semver.org/).
 
+## [10.10.1] - 2026-08-18
+
+Hotfix de producción. Detectado en vivo: la excepción `Tempora_Macro` (Banco Macro) siguió
+silenciando alarmas de Desconexión de Host el 18/08, cuatro días después de su vencimiento
+declarado (14/08 18:00), y la fila nunca se borraba de la planilla.
+
+### Fixed
+- **Vencimiento de Excepciones con fecha ilegible (`utils/Fechas.js`):** si la celda "Fecha hasta" llegaba como texto que `new Date()` no podía parsear —el caso real: `"14/08/2026"`, que el motor JS lee como `MM/DD/YYYY` y da `Invalid Date`—, el código caía en silencio a `new Date()` (hoy) como fecha base. La hora sí se aplicaba encima, así que el vencimiento se recalculaba como "hoy a las HH:mm" **en cada corrida**: la regla nunca vencía y la fila nunca se borraba. Afectaba por igual al matching de Excepciones (`DataRepository._parseExcepciones`) y a la limpieza automática (`Tools.limpiarExcepcionesVencidas`), porque desde v10.7.0 ambas comparten esta función.
+  - Ahora se acepta explícitamente texto `"DD/MM/YYYY"` / `"DD-MM-YYYY"`, validando que la fecha exista de verdad (un `31/02/2026` no rueda a marzo, se rechaza).
+  - **Fail-closed:** si ninguna interpretación da una fecha válida, la regla se trata como **ya vencida** en vez de "no vence nunca" o "vence hoy". Una celda ilegible no debe seguir silenciando alarmas de forma indefinida — es el mismo criterio que el punto 8 de la auditoría aplicó a los feriados: ante configuración rota, fallar del lado que deja ver la alarma, no del que la oculta.
+
+### Added
+- **Tests:** 4 casos nuevos en `test/fechas.test.js` (total 9), incluida la reproducción exacta del incidente `Tempora_Macro` y los dos caminos de fail-closed (texto ilegible y fecha imposible). Suite total: 146/146.
+
+### Nota operativa
+El fix hace que el script trate la regla como vencida, pero **no reescribe la planilla**: una
+celda "Fecha hasta" que haya quedado como texto conviene volver a cargarla para que Sheets la
+reconozca como fecha real. Se configuró además el trigger diario de
+`runnerLimpiarExcepcionesVencidas`, que hasta ahora no existía (la limpieza automática nunca
+había corrido).
+
 ## [10.10.0] - 2026-08-13
 
 Cierra AUDITORIA.md. Últimos hallazgos menores (17, 18, 19, 21). Los puntos 20 y 22 quedan

@@ -1,6 +1,6 @@
 {
   "name": "script-alarmas-wetcom",
-  "version": "10.4.0",
+  "version": "10.10.1",
   "private": true,
   "description": "Automatización de alarmas Jira → Slack (Google Apps Script). Este package.json existe sólo para correr los tests locales; el proyecto en sí no usa dependencias de npm.",
   "scripts": {
