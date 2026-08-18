@@ -61,6 +61,45 @@ const CASOS = [
     }
   },
   {
+    nombre: 'Fecha como texto "DD/MM/YYYY" (celda no tipada como fecha en Sheets): se interpreta igual que un Date',
+    correr: () => {
+      const r = interpretarExpr("'14/08/2026'", "'18:00'");
+      if (!r) return 'no devolvió fecha';
+      if (r.getFullYear() !== 2026 || r.getMonth() !== 7 || r.getDate() !== 14 || r.getHours() !== 18) {
+        return `esperaba 14/08/2026 18:00, obtuvo ${r.getDate()}/${r.getMonth() + 1}/${r.getFullYear()} ${r.getHours()}:${r.getMinutes()}`;
+      }
+      return null;
+    }
+  },
+  {
+    nombre: 'Regresión Tempora_Macro: fecha vencida como texto "DD/MM/YYYY" se detecta como vencida (antes caía a "hoy")',
+    correr: () => {
+      const r = interpretarExpr("'14/08/2026'", "'18:00'");
+      if (!r) return 'no devolvió fecha';
+      const ahora = new Date(2026, 7, 18, 14, 47); // 18/08/2026 14:47, mismo escenario del incidente
+      if (!(r < ahora)) return `esperaba que ${r} ya estuviera vencida respecto de ${ahora}`;
+      return null;
+    }
+  },
+  {
+    nombre: 'Fecha como texto ilegible: fail-closed, se trata como ya vencida (no como "no vence nunca")',
+    correr: () => {
+      const r = interpretarExpr("'no es una fecha'", "''");
+      if (!r) return 'debería devolver una fecha (vencida), no null';
+      if (r.getTime() !== 0) return `esperaba epoch (fail-closed), obtuvo ${r}`;
+      return null;
+    }
+  },
+  {
+    nombre: 'Fecha como texto imposible ("31/02/2026"): fail-closed, se trata como ya vencida',
+    correr: () => {
+      const r = interpretarExpr("'31/02/2026'", "''");
+      if (!r) return 'debería devolver una fecha (vencida), no null';
+      if (r.getTime() !== 0) return `esperaba epoch (fail-closed), obtuvo ${r}`;
+      return null;
+    }
+  },
+  {
     nombre: 'No muta el objeto Date de fecha recibido',
     correr: () => {
       const { contexto } = crearSandbox();
