@@ -98,5 +98,32 @@ const SlackService = {
       muteHttpExceptions: true 
     };
     UrlFetchApp.fetch(webhookURL, options);
+  },
+
+  /**
+   * Publica un texto libre en el canal de logs (mismo webhook que enviarLogExcepcion).
+   * Pensado para avisos operativos que no son sobre una alarma puntual (ej: falla de una
+   * API externa). Best-effort: nunca lanza, para no tumbar al llamador por un problema de
+   * Slack encima del problema que ya se está avisando.
+   */
+  enviarLogTexto: function(mensaje) {
+    let webhookURL;
+    try {
+      webhookURL = Config.obtenerWebhookLogs();
+    } catch (e) {
+      Logger.log(`Log omitido (${e.message}): ${mensaje}`);
+      return;
+    }
+
+    try {
+      UrlFetchApp.fetch(webhookURL, {
+        method: "post",
+        contentType: "application/json",
+        payload: JSON.stringify({ text: mensaje }),
+        muteHttpExceptions: true
+      });
+    } catch (e) {
+      Logger.log(`No se pudo publicar en el canal de logs: ${e.message}`);
+    }
   }
 };

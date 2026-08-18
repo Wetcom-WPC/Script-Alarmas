@@ -4,6 +4,76 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y el proyecto se adhiere a [Semantic Versioning](https://semver.org/).
 
+## [10.10.1] - 2026-08-18
+
+Hotfix de producción. Detectado en vivo: la excepción `Tempora_Macro` (Banco Macro) siguió
+silenciando alarmas de Desconexión de Host el 18/08, cuatro días después de su vencimiento
+declarado (14/08 18:00), y la fila nunca se borraba de la planilla.
+
+### Fixed
+- **Vencimiento de Excepciones con fecha ilegible (`utils/Fechas.js`):** si la celda "Fecha hasta" llegaba como texto que `new Date()` no podía parsear —el caso real: `"14/08/2026"`, que el motor JS lee como `MM/DD/YYYY` y da `Invalid Date`—, el código caía en silencio a `new Date()` (hoy) como fecha base. La hora sí se aplicaba encima, así que el vencimiento se recalculaba como "hoy a las HH:mm" **en cada corrida**: la regla nunca vencía y la fila nunca se borraba. Afectaba por igual al matching de Excepciones (`DataRepository._parseExcepciones`) y a la limpieza automática (`Tools.limpiarExcepcionesVencidas`), porque desde v10.7.0 ambas comparten esta función.
+  - Ahora se acepta explícitamente texto `"DD/MM/YYYY"` / `"DD-MM-YYYY"`, validando que la fecha exista de verdad (un `31/02/2026` no rueda a marzo, se rechaza).
+  - **Fail-closed:** si ninguna interpretación da una fecha válida, la regla se trata como **ya vencida** en vez de "no vence nunca" o "vence hoy". Una celda ilegible no debe seguir silenciando alarmas de forma indefinida — es el mismo criterio que el punto 8 de la auditoría aplicó a los feriados: ante configuración rota, fallar del lado que deja ver la alarma, no del que la oculta.
+
+### Added
+- **Tests:** 4 casos nuevos en `test/fechas.test.js` (total 9), incluida la reproducción exacta del incidente `Tempora_Macro` y los dos caminos de fail-closed (texto ilegible y fecha imposible). Suite total: 146/146.
+
+### Nota operativa
+El fix hace que el script trate la regla como vencida, pero **no reescribe la planilla**: una
+celda "Fecha hasta" que haya quedado como texto conviene volver a cargarla para que Sheets la
+reconozca como fecha real. Se configuró además el trigger diario de
+`runnerLimpiarExcepcionesVencidas`, que hasta ahora no existía (la limpieza automática nunca
+había corrido).
+
+## [10.10.0] - 2026-08-13
+
+Cierra AUDITORIA.md. Últimos hallazgos menores (17, 18, 19, 21). Los puntos 20 y 22 quedan
+sin resolver por decisión del equipo (contemplados, no urgentes).
+
+### Fixed
+- **`alarmaPricipal` → `alarmaPrincipal`:** typo en el contrato de datos entre `MessageFormatter.js` (arma el JSON del borrador) y `WebApp.js` (lo lee). Corregido en ambos lados a la vez.
+- **`"wpc@wetcom.com"` hardcodeado en `WebApp.js`:** reemplazado por `Config.EMAIL_FALLBACK`, que ya tenía el mismo valor.
+- **Error de procesamiento con numeración de fila de Excel inexistente:** `AlarmProcessor` citaba `(Equiv. Fila N)`, retrocompatibilidad con una época en la que las alarmas venían de una planilla. Ahora identifica al ticket por su `key` real y, sólo si falta, por su posición en el lote (descrita como tal, no como una fila).
+- **`Target:?` sin delimitador de palabra:** la regex de `AlarmParser.extraerOrigen` matcheaba `SubTarget:` como si fuera la etiqueta `Target:`, tomando el valor de una etiqueta ajena. Se agregó `(?:^|\s)` antes de la etiqueta, el mismo criterio que ya usaba `LegacyVCenterParser` para `Description:`.
+
+### Added
+- **Tests:** `test/erroresProcesamiento.test.js` (3 casos) y `test/alarmParser.test.js` (3 casos, incluida la reproducción específica del bug de "SubTarget:"). Suite total: 142/142.
+
+## [10.9.0] - 2026-08-11
+
+### Added
+- **Cobertura de Tests para `MessageFormatter`, `DataRepository`, `Tools` y `WebApp`** (AUDITORIA.md, puntos 15-16):
+  - `test/messageFormatter.test.js` (20 casos): testea el string final que se publica (Slack y el HTML de guardia), no sólo la estructura intermedia. Indentación (vCenter/Cluster/Target/detalle), ocultamiento de "Desconocido", bloques por cobertura, los 4 formatos de rango de fecha, `_escapeHTML` y el escapado del nombre del cliente en el correo.
+  - `test/dataRepository.test.js` (7 casos) y `test/limpieza.test.js` (7 casos, para `Tools.limpiarExcepcionesVencidas` — la función que borra filas de la planilla sin vuelta atrás).
+  - `test/webapp.test.js` (6 casos) para `_esPayloadBorradorValido`.
+  - Nuevo tipo de sandbox en `test/harness.js` (`crearSandboxHojas`) con un doble mutable de `SpreadsheetApp`, para poder testear código que lee/escribe hojas de cálculo.
+  - Quedan fuera a propósito: `doGet`/`doPost`/`_generarBorrador` de punta a punta (integran Gmail/Drive/Cache/HtmlService reales) y `Tools.limpiarBorradoresViejos` (usa DriveApp, severidad baja). Ver la nota de alcance en AUDITORIA.md punto 16.
+  - Suite total: 136/136.
+
+## [10.8.0] - 2026-08-11
+
+### Changed
+- **`MessageFormatter` sin Duplicación entre Slack y HTML:** el armado de `groupByCombination` (parseo del origen, agrupado por vCenter/cluster/summaries) estaba copiado entero entre `_generarDetalleAlarmas` (Slack) y `_generarDetalleAlarmasHTML`, y ya habían llegado a divergir una vez sin que nadie lo decidiera (`_agruparPorCobertura` sólo se enganchaba en el camino de Slack). Se extrajo `_agruparPorCombinacion(entradasTarget)`, usada por los dos. Sin cambios de salida: los 31 golden tests lo verifican.
+- **Clave de Agrupación de Alarmas, Explícita:** `AlarmProcessor` usaba `JSON.stringify(origen)` directo como clave de `mensajesProcesados`, dependiendo implícitamente de que todos los parsers construyeran el objeto `origen` con las claves en el mismo orden. Nueva `_claveOrigen(origen)` ordena las claves antes de serializar, así deja de ser un efecto colateral del orden de inserción.
+- **`doGet` ya no muta nada:** creaba un borrador de Gmail dentro de una request GET (que debería ser segura de repetir). Ahora `doGet` sólo devuelve una página que se reenvía sola como POST hacia el nuevo `doPost`, que es quien llama a `GmailApp.createDraft`.
+- **Borrador de Correo, Validado antes de Usarse:** `WebApp.js` tomaba cualquier `DriveApp.getFileById(id)` sin verificar que el contenido fuera realmente un borrador generado por esta app. Nueva `_esPayloadBorradorValido()` corta con un mensaje claro si no tiene la forma esperada. De paso, `${payloadBorrador.cliente}` y `${err.message}` pasan ahora por `MessageFormatter._escapeHTML()` antes de ir al HTML de respuesta (antes se interpolaban sin escapar).
+- **Reintento en Llamadas HTTP de Sólo Lectura:** nuevo `utils/Http.js` (`conReintento` / `fetchConReintento`, con backoff simple y sin reintentar 4xx). Se usa en `JiraService.buscarAlarmas`, `JiraService.obtenerTransiciones` y `Tools._consultarFeriados` (que pasa a usar el helper compartido en vez de su reintento ad-hoc). Deliberadamente **no** se aplica a los POST que mutan estado (transicionar/comentar un ticket, publicar en Slack): un POST que tira una excepción de red pudo haber llegado igual al servidor, y reintentarlo a ciegas arriesga duplicar la acción.
+
+### Added
+- **Tests:** `test/http.test.js` (10 casos, `Http.conReintento` / `fetchConReintento`). Suite total: 100/100.
+
+## [10.7.0] - 2026-08-11
+
+### Fixed
+- **Vencimiento de Excepciones Duplicado (podía divergir):** `DataRepository._parseExcepciones` (decide si una regla sigue vigente) y `Tools.limpiarExcepcionesVencidas` (decide si la fila se borra de la planilla) tenían el mismo bloque de ~25 líneas copiado. Un fix aplicado en uno solo podía dejar al motor de Excepciones y a la limpieza automática tomando decisiones distintas sobre la misma regla. Se extrajo a `Fechas.interpretarVencimiento(fechaVal, horaVal)` (`utils/Fechas.js`), función pura, y ambos la consumen ahora.
+- **Regla de Excepción con Typo Fallaba en Silencio:** la comparación de `cliente` y `tipoAlarma` en `AlarmProcessor._verificarExcepcion` era exacta y sensible a mayúsculas — `banco macro` no matcheaba `Banco Macro`, y la regla quedaba sin efecto para siempre sin ningún aviso. Ahora se normalizan igual que el POD (mayúsculas + trim).
+- **`_crearMensajeFecha` Mutaba las Fechas que Recibía:** `entry.created.setSeconds(0, 0)` modifica el objeto original en vez de devolver uno nuevo. Inocuo hoy (poner los segundos en cero es idempotente), pero la guardia formatea las mismas entradas dos veces (Slack y HTML) y era una trampa para el día que alguien necesitara los segundos originales. Ahora se clona con `new Date(entry.created.getTime())` antes de truncar.
+- **Lookups sin `hasOwnProperty` sobre Datos de Planilla:** un valor como `constructor` en la columna de "Tipos de Alarmas" o en "Clientes" podía resolver contra el prototipo de `Object` en vez de dar "no encontrado". Los mapas que arma `DataRepository` (`mapaClientes`, `mapaPodsClientes`, `mapaCorreos*`) se construyen ahora con `Object.create(null)`, y el lookup de `AlarmFormatters.manejadores[tipoAlarma]` en `AlarmProcessor` quedó atrás de un `hasOwnProperty` explícito.
+- **La Guardia se Omitía si la API de Feriados Fallaba:** `esFinDeSemanaOFeriado` asumía día hábil (no enviaba la guardia) ante cualquier falla de `api.argentinadatos.com`, sin más rastro que una línea en el Logger. Ahora reintenta una vez (para no tratar un error momentáneo como una caída real) y, si sigue fallando, asume que el día NO es hábil —se envía la guardia igual— y lo avisa por Slack vía `SlackService.enviarLogTexto` (nuevo). Es la falla más segura: una guardia de más un día hábil es molesta, una guardia de menos un feriado real es el problema que esta función existe para evitar.
+
+### Added
+- **Tests:** `test/fechas.test.js` (5 casos, `Fechas.interpretarVencimiento`) y `test/tools.test.js` (6 casos, reintento y aviso por Slack de `esFinDeSemanaOFeriado`). 3 casos nuevos en `test/excepciones.test.js` para la normalización de cliente/tipo de alarma. Suite total: 90/90.
+
 ## [10.6.1] - 2026-08-11
 
 ### Changed

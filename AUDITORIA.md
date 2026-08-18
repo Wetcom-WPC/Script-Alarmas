@@ -13,29 +13,34 @@ Cada punto indica archivo y línea. El estado se actualiza a medida que se resue
 
 | # | Severidad | Hallazgo | Estado |
 |---|---|---|---|
-| 1 | 🔴 Alta | Techo de 100 tickets sin paginación ni aviso | ⬜ |
+| 1 | 🔴 Alta | Techo de 100 tickets sin paginación ni aviso | ⬜ (no se va a resolver, ver nota) |
 | 2 | 🔴 Alta | Logs de excepciones siempre al canal de testing | ✅ v10.6.0 |
 | 3 | 🔴 Alta | `ENTORNO` como constante en archivo versionado | ✅ v10.6.0 |
-| 4 | 🟠 Media | Lógica de vencimiento de excepciones duplicada | ⬜ |
-| 5 | 🟠 Media | Regla de excepción con typo falla en silencio | ⬜ |
-| 6 | 🟠 Media | `_crearMensajeFecha` muta las fechas que recibe | ⬜ |
-| 7 | 🟠 Media | Lookups sin `hasOwnProperty` sobre datos de planilla | ⬜ |
-| 8 | 🟠 Media | La guardia no se envía si la API de feriados falla | ⬜ |
-| 9 | 🟡 Diseño | ~130 líneas duplicadas entre render Slack y HTML | ⬜ |
-| 10 | 🟡 Diseño | El origen viaja como string JSON usado de clave | ⬜ |
-| 11 | 🟡 Diseño | `doGet` provoca un efecto de lado | ⬜ |
-| 12 | 🟡 Diseño | `DriveApp.getFileById` acepta cualquier ID | ⬜ |
-| 13 | 🟡 Diseño | Ninguna llamada HTTP tiene reintento | ⬜ |
-| 14 | 🟡 Diseño | El token de Jira ahora tiene permisos de escritura | ⬜ |
-| 15 | 🔵 Tests | `MessageFormatter` sin cobertura | ⬜ |
-| 16 | 🔵 Tests | `DataRepository`, `Tools` y `WebApp` sin cobertura | ⬜ |
-| 17–22 | ⚪ Menores | Varios | ⬜ |
+| 4 | 🟠 Media | Lógica de vencimiento de excepciones duplicada | ✅ v10.7.0 |
+| 5 | 🟠 Media | Regla de excepción con typo falla en silencio | ✅ v10.7.0 |
+| 6 | 🟠 Media | `_crearMensajeFecha` muta las fechas que recibe | ✅ v10.7.0 |
+| 7 | 🟠 Media | Lookups sin `hasOwnProperty` sobre datos de planilla | ✅ v10.7.0 |
+| 8 | 🟠 Media | La guardia no se envía si la API de feriados falla | ✅ v10.7.0 |
+| 9 | 🟡 Diseño | ~130 líneas duplicadas entre render Slack y HTML | ✅ v10.8.0 |
+| 10 | 🟡 Diseño | El origen viaja como string JSON usado de clave | ✅ v10.8.0 |
+| 11 | 🟡 Diseño | `doGet` provoca un efecto de lado | ✅ v10.8.0 |
+| 12 | 🟡 Diseño | `DriveApp.getFileById` acepta cualquier ID | ✅ v10.8.0 |
+| 13 | 🟡 Diseño | Ninguna llamada HTTP tiene reintento | ✅ v10.8.0 (parcial, ver nota) |
+| 14 | 🟡 Diseño | El token de Jira ahora tiene permisos de escritura | ⬜ (ya contemplado por el equipo, fuera del código) |
+| 15 | 🔵 Tests | `MessageFormatter` sin cobertura | ✅ v10.9.0 |
+| 16 | 🔵 Tests | `DataRepository`, `Tools` y `WebApp` sin cobertura | ✅ v10.9.0 (parcial, ver nota) |
+| 17 | ⚪ Menor | `alarmaPricipal` mal escrito (contrato de datos) | ✅ v10.10.0 |
+| 18 | ⚪ Menor | `"wpc@wetcom.com"` hardcodeado en `WebApp.js` | ✅ v10.10.0 |
+| 19 | ⚪ Menor | Error con numeración de fila de Excel inexistente | ✅ v10.10.0 |
+| 20 | ⚪ Menor | `_debeExcluirse` matchea "falso positivo" como subcadena | ⬜ (contemplado por el equipo, no se va a resolver) |
+| 21 | ⚪ Menor | `Target:?` sin delimitador de palabra (matchea `SubTarget:`) | ✅ v10.10.0 |
+| 22 | ⚪ Menor | Encabezado `POD WPC` redundante | ⬜ (contemplado por el equipo, no se va a resolver) |
 
 ---
 
 ## 🔴 Bloqueantes
 
-### 1. `buscarAlarmas()` tiene un techo duro de 100 tickets y descarta el resto en silencio ⬜
+### 1. `buscarAlarmas()` tiene un techo duro de 100 tickets y descarta el resto en silencio 🔒 cerrado, sin implementar
 
 **Dónde:** `services/JiraService.js:28`
 
@@ -50,7 +55,9 @@ Agravante: el `README.md` afirmaba "Realiza consultas paginadas a la API REST v3
 La documentación describía algo que el código no hace, así que nadie iría a buscar ahí.
 
 **Decisión del equipo (11/08/2026):** limitación contemplada. Rara vez hay más de 20
-alarmas activas, así que 100 sobra por amplio margen.
+alarmas activas, así que 100 sobra por amplio margen. Se evaluó la propuesta de abajo y se
+decidió **no implementarla**: no vale la complejidad para un caso que no ocurre en la
+práctica. Punto cerrado, sin cambios de código.
 
 **Propuesta de bajo costo (pendiente de aprobación).** La API nueva `/search/jql` pagina
 con `nextPageToken`, así que el bucle es corto y acotado:
@@ -127,9 +134,9 @@ fallara. Toda la decisión pasa ahora por `Config.esProduccion()`.
 
 ## 🟠 Correctitud
 
-### 4. La lógica de vencimiento de excepciones está duplicada y puede divergir ⬜
+### 4. La lógica de vencimiento de excepciones está duplicada y puede divergir ✅
 
-**Dónde:** `config/DataRepository.js:81-103` y `utils/Tools.js:65-87`
+**Dónde:** `config/DataRepository.js` y `utils/Tools.js` · **Resuelto en:** v10.7.0
 
 El mismo bloque de ~25 líneas, copiado, para interpretar `Fecha hasta` + `Hora hasta`.
 
@@ -137,17 +144,23 @@ Uno decide si una regla silencia; el otro decide si se borra la fila. Si alguien
 caso borde en uno solo, se llega a un estado donde `limpiarExcepcionesVencidas` borra una
 regla que el motor todavía considera vigente, o deja viva una que ya no aplica.
 
-Agravante: el trigger de limpieza **elimina filas de la planilla**. El error no se deshace.
+Se extrajo tal cual se sugería: `Fechas.interpretarVencimiento(fechaVal, horaVal)` en
+`utils/Fechas.js`, función pura, testeada sola (`test/fechas.test.js`, 9 casos) y consumida
+desde `DataRepository._parseExcepciones` y `Tools.limpiarExcepcionesVencidas`.
 
-**Sugerencia:** extraer una función pura `interpretarVencimiento(fechaVal, horaVal)` a un
-único lugar y consumirla desde ambos. Como es pura, se puede testear sin `SpreadsheetApp`,
-lo que además avanza el punto 16.
+**Secuela (18/08/2026, v10.10.1):** la unificación resultó clave, pero la función unificada
+arrastraba un bug que ninguna de las dos copias originales había resuelto: ante una fecha
+ilegible caía a `new Date()` (hoy) como base, así que la regla se revalidaba sola en cada
+corrida y no vencía nunca. Se detectó en producción con la excepción `Tempora_Macro`. Que el
+criterio ya estuviera en un solo lugar permitió arreglarlo una vez y que valiera para el
+matching y para la limpieza a la vez — exactamente el escenario que este punto anticipaba,
+sólo que en la dirección inversa a la temida. Ver CHANGELOG v10.10.1.
 
 ---
 
-### 5. Una regla de excepción con un typo falla en silencio, para siempre ⬜
+### 5. Una regla de excepción con un typo falla en silencio, para siempre ✅
 
-**Dónde:** `core/AlarmProcessor.js:246-249`
+**Dónde:** `core/AlarmProcessor.js` · **Resuelto en:** v10.7.0
 
 ```js
 if (regla.cliente !== 'TODOS' && regla.cliente.trim() !== cliente.trim()) continue;
@@ -164,14 +177,22 @@ depuración del POD el 11/08.
 **Inconsistencia asociada:** el POD sí se compara normalizado (`toUpperCase()`); el cliente
 y el tipo de alarma, no. Son criterios distintos para campos del mismo formulario.
 
-**Sugerencia:** normalizar los tres igual, y emitir un warning cuando una regla vigente no
-matcheó ningún ticket en la corrida (candidato a aparecer en el canal de logs).
+**Resuelto:** cliente y tipo de alarma ahora se normalizan igual que el POD
+(`trim().toUpperCase()`) en `_verificarExcepcion`. Cubierto por 3 casos nuevos en
+`test/excepciones.test.js`.
+
+**Lo que quedó afuera (deliberado):** la idea original también proponía avisar cuando una
+regla vigente no matcheó ningún ticket en la corrida. Se descartó: una regla legítima no
+matchea nada en la mayoría de las corridas simplemente porque no llegó ninguna alarma que
+silenciar — eso no es un typo, es el caso normal. Implementarlo generaría un falso positivo
+en casi todas las corridas exitosas, no una señal útil. La normalización sola cubre el caso
+real que motivó el punto.
 
 ---
 
-### 6. `_crearMensajeFecha` muta las fechas que recibe ⬜
+### 6. `_crearMensajeFecha` muta las fechas que recibe ✅
 
-**Dónde:** `utils/MessageFormatter.js:246`
+**Dónde:** `utils/MessageFormatter.js` · **Resuelto en:** v10.7.0
 
 ```js
 .map(entry => (entry && entry.created) ? new Date(entry.created.setSeconds(0, 0)) : null)
@@ -185,14 +206,15 @@ El efecto hoy es inocuo —pone los segundos en cero, y repetirlo da lo mismo—
 porque es una trampa: el día que alguien necesite los segundos, o compare fechas después de
 formatear, el bug aparecerá lejos de acá.
 
-**Sugerencia:** `new Date(entry.created.getTime())` y recién ahí `setSeconds`.
+**Resuelto:** clona con `new Date(entry.created.getTime())` antes de truncar los segundos.
 
 ---
 
-### 7. Lookups sin `hasOwnProperty` sobre datos que vienen de la planilla ⬜
+### 7. Lookups sin `hasOwnProperty` sobre datos que vienen de la planilla ✅
 
-**Dónde:** `core/AlarmProcessor.js:224` (`AlarmFormatters.manejadores[tipoAlarma]`), y el
-mismo patrón en `mapaAlarmas`, `mapaClientes` y `mapaPodsClientes`.
+**Dónde:** `core/AlarmProcessor.js` (`AlarmFormatters.manejadores[tipoAlarma]`) y
+`config/DataRepository.js` (`mapaClientes`, `mapaPodsClientes`, `mapaCorreos*`) ·
+**Resuelto en:** v10.7.0
 
 Si en la columna B de la planilla apareciera un nombre como `toString` o `constructor`, el
 lookup devolvería la función heredada del prototipo, se la invocaría como si fuera un
@@ -200,33 +222,42 @@ formateador, `resultado.incluir` quedaría `undefined` y la alarma se descartar�
 explicación.
 
 Es improbable en la práctica y se registra como tal. Pero el patrón "diccionario indexado
-por texto de una planilla" aparece en cuatro lugares y la corrección es una línea en cada
-uno (`Object.prototype.hasOwnProperty.call(...)`, o construir los mapas con
-`Object.create(null)`).
+por texto de una planilla" aparece en cuatro lugares.
+
+**Resuelto** con la alternativa de bajo costo que ya proponía el hallazgo: los mapas que
+arma `DataRepository` (`_createMap`, `_crearMapaPods`, `_parseCorreosEntorno`) se construyen
+ahora con `Object.create(null)`, así que no tienen prototipo del que heredar nada. El único
+lookup que no pasa por esos mapas —`AlarmFormatters.manejadores[tipoAlarma]`, que es un
+objeto autoral, no uno armado desde la planilla— quedó atrás de un
+`Object.prototype.hasOwnProperty.call(...)` explícito en el sitio de consumo.
 
 ---
 
-### 8. `esFinDeSemanaOFeriado` falla hacia el lado que oculta el problema ⬜
+### 8. `esFinDeSemanaOFeriado` falla hacia el lado que oculta el problema ✅
 
-**Dónde:** `utils/Tools.js:128` y `utils/Tools.js:132`
+**Dónde:** `utils/Tools.js` · **Resuelto en:** v10.7.0
 
-Si la API de feriados no responde, devuelve `false`. Consecuencia: un 25 de mayo con
-`api.argentinadatos.com` caído, `disparadorGuardia()` decide que es día hábil y **no envía
-la guardia**. Nadie recibe el reporte y el único registro es una línea en el Logger.
+Si la API de feriados no respondía, devolvía `false`. Consecuencia: un 25 de mayo con
+`api.argentinadatos.com` caído, `disparadorGuardia()` decidía que era día hábil y **no
+enviaba la guardia**. Nadie recibía el reporte y el único registro era una línea en el
+Logger.
 
-Es una decisión defendible (mejor no spamear que spamear), pero es una dependencia externa
-no cacheada, consultada en cada corrida, cuyo modo de falla es "no hacer nada".
-
-**Sugerencia:** cachear el listado anual de feriados en `CacheService` o en una Script
-Property, y avisar a Slack cuando la consulta falle en vez de seguir de largo.
+**Resuelto**, con una variante a la sugerencia original — decisión explícita del equipo
+(11/08/2026): no cachear el listado anual (ensuciaría Script Properties o CacheService sin
+necesidad real), y en cambio invertir directamente el lado del fallo. Ahora
+`_consultarFeriados` reintenta la llamada una vez (para no tratar un error momentáneo igual
+que una caída real) y, si las dos fallan, `esFinDeSemanaOFeriado` **asume que el día NO es
+hábil** —se envía la guardia igual— y lo avisa por Slack con `SlackService.enviarLogTexto`
+(nuevo, mismo webhook de logs). Cubierto por `test/tools.test.js` (6 casos, incluida la
+recuperación tras un solo fallo).
 
 ---
 
 ## 🟡 Diseño y mantenibilidad
 
-### 9. ~130 líneas duplicadas entre el render de Slack y el de HTML ⬜
+### 9. ~130 líneas duplicadas entre el render de Slack y el de HTML ✅
 
-**Dónde:** `utils/MessageFormatter.js:116-217` y `utils/MessageFormatter.js:276-415`
+**Dónde:** `utils/MessageFormatter.js` · **Resuelto en:** v10.8.0
 
 Repiten completo el armado de `groupByCombination`: mismo parseo del origen, mismo `Set` de
 summaries, misma `claveGrupo`, mismo relleno de `targets` / `entries`.
@@ -235,70 +266,86 @@ La consecuencia ya se materializó: al agregar los bloques por cobertura, `_agru
 se enganchó **sólo en el camino de Slack**. Funciona igual en el HTML por casualidad (la
 cobertura ya está dentro de `claveGrupo`), pero es una divergencia que nadie eligió.
 
-Es el refactor con mejor relación beneficio/riesgo del proyecto: extraer el agrupado a una
-función y dejar que cada render se ocupe sólo de pintar. Conviene hacerlo junto con el
-punto 15.
+**Resuelto** tal cual se sugería: se extrajo `_agruparPorCombinacion(entradasTarget)`,
+usada ahora por `_generarDetalleAlarmas` (Slack) y `_generarDetalleAlarmasHTML`. Cada
+render se ocupa sólo de pintar. Los 31 golden tests verifican que la salida no cambió un
+carácter.
 
 ---
 
-### 10. El origen viaja como string JSON usado de clave de objeto ⬜
+### 10. El origen viaja como string JSON usado de clave de objeto ✅
 
-**Dónde:** `core/AlarmProcessor.js:102` y `utils/MessageFormatter.js:127`
+**Dónde:** `core/AlarmProcessor.js` · **Resuelto en:** v10.8.0
 
-Se hace `JSON.stringify(c.origen)` para usarlo como clave de `mensajesProcesados`, y del
-otro lado se vuelve a parsear con un `try/catch` que fabrica un objeto falso si falla.
+Se hacía `JSON.stringify(c.origen)` para usarlo como clave de `mensajesProcesados`, y del
+otro lado se volvía a parsear con un `try/catch` que fabrica un objeto falso si falla.
 
-Funciona porque el objeto siempre se construye con las mismas claves en el mismo orden.
-Pero es una invariante implícita que nadie declara: agregar un campo condicional a `origen`
-cambia la clave y por lo tanto el agrupado. Ya ocurre hoy con `cobertura` —una alarma 9x5 y
-una 24x7 no se agrupan, que es lo que queremos, pero se logró por un efecto lateral de la
-serialización y no por una decisión explícita.
+Funcionaba porque el objeto siempre se construía con las mismas claves en el mismo orden.
+Pero era una invariante implícita que nadie declaraba: dos parsers que arman `origen` con
+las mismas claves en distinto orden (ej. uno agrega `etiquetaTarget` antes de `cobertura`,
+otro después) generaban strings distintos y la misma alarma terminaba en dos grupos.
 
----
-
-### 11. `doGet` provoca un efecto de lado ⬜
-
-**Dónde:** `WebApp.js:62`
-
-Crea un borrador de Gmail dentro de un GET. Un GET debería ser seguro de repetir.
-
-Lo modera bastante la configuración: `access: DOMAIN` y `executeAs: USER_ACCESSING` en
-`appsscript.json` impiden que un bot anónimo (el unfurl de Slack, por ejemplo) ejecute algo.
-El riesgo remanente es acotado: un prefetch del navegador de un usuario del dominio, o una
-recarga de pestaña, genera borradores repetidos en su propia casilla. Molesto, no grave.
+**Resuelto:** nueva `AlarmProcessor._claveOrigen(origen)`, que ordena las claves antes de
+serializar (`JSON.stringify(origen, Object.keys(origen).sort())`). Mismo contenido, orden
+determinístico — deja de depender de en qué orden cada parser construyó el objeto.
 
 ---
 
-### 12. `DriveApp.getFileById(e.parameter.id)` acepta cualquier ID ⬜
+### 11. `doGet` provoca un efecto de lado ✅
 
-**Dónde:** `WebApp.js:17`, con el contenido inyectado sin escapar en `WebApp.js:47`
+**Dónde:** `WebApp.js` · **Resuelto en:** v10.8.0
 
-El parámetro va sin validar. Con `executeAs: USER_ACCESSING` el alcance se limita a lo que
-ese usuario ya puede leer, así que no hay escalada de privilegios —de ahí que quede en
-amarillo—. Aun así, no hay ninguna verificación de que el archivo sea un borrador generado
-por esta aplicación.
+Creaba un borrador de Gmail dentro de un GET. Un GET debería ser seguro de repetir.
 
-En la misma función, `${payloadBorrador.cliente}` (`WebApp.js:71`) y `${err.message}`
-(`WebApp.js:80`) se interpolan sin escapar en el HTML de respuesta, mientras que
-`MessageFormatter` sí tiene `_escapeHTML()` y lo usa con disciplina. Es una inconsistencia
-dentro del mismo proyecto.
+**Resuelto:** `doGet` ya no crea nada. Devuelve una página que se reenvía sola como POST
+(un `<form>` con `onload="submit()"`) hacia el nuevo `doPost`, que es quien de verdad llama
+a `GmailApp.createDraft`. Un prefetch del navegador o una recarga de pestaña ya no generan
+un borrador de más.
 
 ---
 
-### 13. Ninguna llamada HTTP tiene reintento ⬜
+### 12. `DriveApp.getFileById(e.parameter.id)` acepta cualquier ID ✅
 
-Ni Jira, ni Slack, ni la API de feriados. Un 502 transitorio en `buscarAlarmas()` lanza
-excepción y **aborta la corrida completa**: no se informa nada, no se cierra nada.
+**Dónde:** `WebApp.js` · **Resuelto en:** v10.8.0
 
-Con el cierre automático esto pesa más que antes: se hacen hasta 3 llamadas por alarma
-silenciada (listar transiciones, transicionar, comentar), todas sin reintento.
+El parámetro iba sin validar. Con `executeAs: USER_ACCESSING` el alcance se limita a lo que
+ese usuario ya puede leer, así que no había escalada de privilegios —de ahí que quedara en
+amarillo—. Aun así, no había ninguna verificación de que el archivo fuera un borrador
+generado por esta aplicación.
 
-**Sugerencia:** un helper `_fetchConReintento(url, options, intentos)` con back-off simple,
-usado por `JiraService` y `SlackService`.
+**Resuelto:**
+- Nueva `_esPayloadBorradorValido(payload)`: si el JSON leído no tiene la forma mínima
+  esperada (`cliente` y `html` como string), se corta con un mensaje claro en vez de
+  intentar armar un correo con datos ajenos.
+- `${payloadBorrador.cliente}` y `${err.message}` ahora pasan por
+  `MessageFormatter._escapeHTML()` antes de ir al HTML de respuesta, igual que ya se hacía
+  en el resto de `MessageFormatter`.
 
 ---
 
-### 14. El token de Jira ahora tiene permisos de escritura ⬜
+### 13. Ninguna llamada HTTP tenía reintento ✅ (parcial, a propósito)
+
+**Resuelto en:** v10.8.0 — nuevo `utils/Http.js`.
+
+Ni Jira, ni Slack, ni la API de feriados. Un 502 transitorio en `buscarAlarmas()` lanzaba
+excepción y **abortaba la corrida completa**: no se informaba nada, no se cerraba nada.
+
+**Resuelto, con alcance acotado a propósito:** `Http.fetchConReintento` (reintenta ante una
+excepción de red o un HTTP 429/5xx; un 4xx es determinístico y se devuelve tal cual) se usa
+en las llamadas de **sólo lectura**: `JiraService.buscarAlarmas`, `JiraService.obtenerTransiciones`
+y `Tools._consultarFeriados` (que ya tenía su propio reintento ad-hoc desde el punto 8;
+ahora usa el helper compartido).
+
+**Deliberadamente NO se aplicó a los POST que mutan estado** (transicionar un ticket,
+comentarlo, publicar en Slack): un POST que tira una excepción de red pudo haber llegado
+igual al servidor, y reintentarlo a ciegas arriesga duplicar la acción — el mismo motivo por
+el que `JiraService.comentarTicketInterno` ya evita reintentar tras un resultado incierto.
+Generalizar el reintento a esos POST sin resolver antes la idempotencia sería cambiar un
+problema (falla silenciosa) por otro peor (duplicados en Jira o en el canal de Slack).
+
+---
+
+### 14. El token de Jira ahora tiene permisos de escritura 🔒 fuera de alcance (ya contemplado por el equipo)
 
 No es un defecto del código, es un cambio en el radio de impacto que conviene tener
 presente. Hasta v10.4.0, comprometer `JIRA_AUTH_TOKEN` permitía leer tickets. Desde v10.5.0
@@ -308,42 +355,122 @@ cualquiera con permiso de edición sobre el proyecto de Apps Script.
 **Sugerencia:** confirmar que la cuenta de servicio tenga permisos acotados a los proyectos
 de alarmas y a nada más.
 
+**Decisión del equipo (11/08/2026):** ya contemplado por fuera del código (permisos de la
+cuenta de servicio en Jira). No requiere cambios acá.
+
 ---
 
 ## 🔵 Cobertura de tests
 
-### 15. `MessageFormatter` no está testeado ⬜
+### 15. `MessageFormatter` no está testeado ✅
+
+**Resuelto en:** v10.9.0 — `test/messageFormatter.test.js` (20 casos).
 
 Los golden congelan la salida de `AlarmProcessor` (la estructura `mensajesProcesados`), no
 el mensaje de Slack final. **El string que efectivamente se publica no lo verifica nadie.**
 Toda la lógica de indentación, agrupado por cobertura, rangos de fecha y ocultamiento de
-"Desconocido" está sin red.
+"Desconocido" estaba sin red.
 
 Es el módulo con más lógica condicional del proyecto y el único cuyo output ve el cliente.
 
+**Resuelto:** se llama a `generarMensaje` / `generarCorreoGuardiaHTML` directamente con
+estructuras `mensajesProcesados` armadas a mano (sin pasar por `AlarmProcessor`), y se
+verifica el string resultante. Cubre: saludo `@wpc` vs `@pod<N>`, el párrafo de cierre
+compartido, los 4 niveles de indentación (vCenter/Cluster/Target/detalle) con y sin
+Cluster, el ocultamiento de "Desconocido"/"no encontrado", los bloques separados por
+cobertura vs el agrupado dentro de la misma cobertura, el partido de summaries
+multilínea, los 4 formatos de `_crearMensajeFecha` (fecha única, mismo minuto tras
+truncar segundos, rango dentro del día, rango entre días), `_escapeHTML` y el escapado
+del nombre del cliente en el HTML de guardia. De paso quedó confirmado que
+`generarMensaje` no revienta sin `CacheService`/`DriveApp` disponibles (el intento de
+generar el link de borrador está bien encapsulado en su propio try/catch).
+
 ---
 
-### 16. Sin cobertura: `DataRepository`, `Tools` y `WebApp` ⬜
+### 16. Sin cobertura: `DataRepository`, `Tools` y `WebApp` ✅ (parcial, ver nota)
+
+**Resuelto en:** v10.9.0.
 
 `_parseExcepciones` interpreta fechas y horas con varias ramas (Date, string, vacío) y es el
 corazón del vencimiento de reglas. `limpiarExcepcionesVencidas` **borra filas de la
-planilla**. Ninguno tiene un solo test.
+planilla**. Ninguno tenía un solo test.
 
-`DataRepository` y `Tools` tocan `SpreadsheetApp`, pero la lógica de fechas es pura y se
-puede extraer — que es además lo que resolvería el punto 4.
+**Resuelto**, con un tercer tipo de sandbox nuevo en `test/harness.js`
+(`crearSandboxHojas`, con un doble mutable de `SpreadsheetApp`) para poder ejercitar código
+que lee/escribe hojas de cálculo sin tocar Sheets real:
+
+- `test/dataRepository.test.js` (7 casos): `_createMap`, `_crearMapaPods`,
+  `_parseCorreosEntorno` (columna B vs C según entorno) y `_parseExcepciones` (defaults,
+  delegación en `Fechas.interpretarVencimiento`, filas sin ID).
+- `test/limpieza.test.js` (7 casos): `Tools.limpiarExcepcionesVencidas` — la función que
+  la propia auditoría marcó como la más riesgosa por borrar filas sin vuelta atrás.
+  Cubre el caso central (recorrer de abajo hacia arriba sin saltear filas al borrar en el
+  medio), reglas sin fecha que nunca vencen, la hoja `"Excepciones"` vieja (sin sufijo de
+  POD) que debe ignorarse, y varias hojas de POD procesándose de forma independiente.
+- `test/webapp.test.js` (6 casos): `_esPayloadBorradorValido`, la validación agregada en
+  el punto 12.
+
+**Lo que quedó afuera, a propósito:** `doGet`/`doPost`/`_generarBorrador` en sí (integran
+`GmailApp`, `DriveApp`, `CacheService` y `HtmlService` reales) y
+`Tools.limpiarBorradoresViejos` (usa `DriveApp`, y es una limpieza de caché de baja
+severidad — un archivo trashado de más no pierde información real, a diferencia de borrar
+una fila de la planilla). Mockear las cuatro APIs de Google para un test de integración de
+`WebApp.js` completo no parecía tener buena relación esfuerzo/valor frente a testear
+directamente la parte con lógica real (la validación). `DataRepository.obtenerMapeos()`
+tampoco se testea end-to-end: se prefirió cubrir sus cuatro funciones internas, que es
+donde vive toda la lógica no trivial.
 
 ---
 
 ## ⚪ Menores
 
-| # | Hallazgo | Dónde |
-|---|---|---|
-| 17 | `alarmaPricipal` está mal escrito. Es un contrato de datos: hay que cambiarlo en los dos lados a la vez | `MessageFormatter.js:34`, `WebApp.js:39` |
-| 18 | `"wpc@wetcom.com"` hardcodeado existiendo `Config.EMAIL_FALLBACK` con el mismo valor | `WebApp.js:53` |
-| 19 | El error `(Equiv. Fila ${index + 2})` arrastra la numeración de una planilla que ya no es la fuente de datos | `AlarmProcessor.js:89` |
-| 20 | `_debeExcluirse` busca `"falso positivo"` como subcadena del summary completo: una alarma legítima que mencione la frase se descarta sin aviso | `AlarmProcessor.js:200` |
-| 21 | `Target:?` no tiene delimitador de palabra; una etiqueta como `SubTarget:` matchearía | `AlarmParser.js:181` |
-| 22 | Encabezado `POD WPC` redundante: el prefijo se agrega siempre aunque WPC no sea un POD numerado | `MessageFormatter.js:11` |
+### 17. `alarmaPricipal` estaba mal escrito ✅
+
+**Resuelto en:** v10.10.0. Era un contrato de datos entre `MessageFormatter.js` (quien
+escribe el JSON del borrador) y `WebApp.js` (quien lo lee) — se corrigió en los dos lados a
+la vez, a `alarmaPrincipal`.
+
+---
+
+### 18. `"wpc@wetcom.com"` hardcodeado en `WebApp.js` ✅
+
+**Resuelto en:** v10.10.0. Existiendo `Config.EMAIL_FALLBACK` con el mismo valor, no había
+motivo para repetirlo suelto. `correosCC` ahora arranca de `Config.EMAIL_FALLBACK`.
+
+---
+
+### 19. El error de procesamiento citaba una fila de Excel inexistente ✅
+
+**Resuelto en:** v10.10.0. `(Equiv. Fila ${index + 2})` era retrocompatibilidad con una
+época en la que las alarmas SÍ venían de una planilla; hoy vienen de la API de Jira y esa
+fila no corresponde a nada real. Ahora el error identifica al ticket por su `key` real y,
+sólo si ni siquiera eso está disponible (el caso de "Clave faltante"), por su posición en
+el lote — descrito como tal ("elemento #N del lote"), no como si fuera una fila de Excel.
+Cubierto por `test/erroresProcesamiento.test.js` (3 casos).
+
+---
+
+### 20. `_debeExcluirse` matchea "falso positivo" como subcadena ⬜
+
+**Decisión del equipo (13/08/2026):** contemplado, no se va a resolver.
+
+---
+
+### 21. `Target:?` sin delimitador de palabra ✅
+
+**Resuelto en:** v10.10.0. La regex de `AlarmParser.extraerOrigen` buscaba la etiqueta
+`Target:` sin verificar que no fuera parte de otra palabra, así que una etiqueta como
+`SubTarget:` (que no tiene nada que ver) matcheaba igual y su valor se tomaba como si fuera
+el target real de la alarma. Se agregó `(?:^|\s)` antes de `Target`, el mismo criterio que
+ya usa `LegacyVCenterParser._extraerBloqueDescription` para `Description:`. Cubierto por
+`test/alarmParser.test.js` (3 casos, incluido el de "SubTarget: ruido" seguido de la
+etiqueta real, para confirmar que se usa la real y no la falsa).
+
+---
+
+### 22. Encabezado `POD WPC` redundante ⬜
+
+**Decisión del equipo (13/08/2026):** contemplado, no se va a resolver.
 
 ---
 
@@ -357,12 +484,13 @@ del refactor son la razón por la que se pudo mover todo eso sin romper el forma
 
 ---
 
-## Orden sugerido para lo que queda
+## Estado final
 
-1. **Punto 1**, si se decide implementar la paginación — es lo único que puede hacer
-   desaparecer alarmas sin dejar rastro.
-2. **Puntos 4 y 5** — los otros dos que pueden hacer perder una alarma sin que nadie se
-   entere.
-3. **Puntos 9 y 15 juntos** — extraer el agrupado y taparlo con tests en el mismo
-   movimiento.
-4. El resto, por oportunidad.
+Auditoría cerrada. De los 22 hallazgos: 18 resueltos (2-13, 15-19, 21), 4 cerrados
+deliberadamente sin cambios de código por decisión del equipo (1: complejidad no
+justificada; 14: ya contemplado por fuera del código; 20 y 22: contemplados, no se van a
+resolver). 0 pendientes sin decisión. Suite de tests: 146/146.
+
+**Posterior a la auditoría:** v10.10.1 (18/08/2026) corrigió un bug de vencimiento de
+Excepciones detectado en producción, sobre la función que había unificado el punto 4. Ver la
+secuela anotada en ese punto y el CHANGELOG.

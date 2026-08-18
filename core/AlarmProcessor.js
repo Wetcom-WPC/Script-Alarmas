@@ -85,10 +85,13 @@ const AlarmProcessor = {
         });
 
       } catch (err) {
-        // index + 2 por retrocompatibilidad con logs antiguos basados en row (fila de excel)
-        const filaLog = index + 2;
-        errores.push(`Ticket ${ticket.key} (Equiv. Fila ${filaLog}): ${err.message}`);
-        Logger.log(`Error procesando ticket ${ticket.key}: ${err.message}`);
+        // Las alarmas ya no vienen de una planilla, sino de la API de Jira: no hay ninguna
+        // fila real a la que referirse. Se identifica por la key del ticket y, sólo si ni
+        // eso está disponible (el propio caso de "Clave faltante"), por su posición en el
+        // lote — nunca como si fuera un número de fila de Excel.
+        const identificador = ticket.key || `elemento #${index + 1} del lote`;
+        errores.push(`Ticket ${identificador}: ${err.message}`);
+        Logger.log(`Error procesando ticket ${identificador}: ${err.message}`);
       }
     });
 
@@ -99,7 +102,7 @@ const AlarmProcessor = {
     });
 
     conservadas.forEach(c => {
-      this._agruparMensaje(c.pod, c.cliente, c.alarma, JSON.stringify(c.origen), c.created, mensajesProcesados, c.warnings, c.summaryResto);
+      this._agruparMensaje(c.pod, c.cliente, c.alarma, this._claveOrigen(c.origen), c.created, mensajesProcesados, c.warnings, c.summaryResto);
     });
 
     return { mensajesProcesados, errores, alarmasSilenciadas, duplicadasDescartadas: descartadas };
@@ -166,6 +169,21 @@ const AlarmProcessor = {
     return { conservadas, descartadas };
   },
 
+  /**
+   * Clave con la que `mensajesProcesados[pod][cliente][alarma]` agrupa por origen
+   * (vCenter/cluster/target/etiqueta/cobertura). MessageFormatter la vuelve a parsear con
+   * `JSON.parse` para leer esos campos al renderizar.
+   *
+   * Con `JSON.stringify(origen)` a secas, dos objetos con las mismas claves pero insertadas
+   * en otro orden (ej: un parser que agrega `etiquetaTarget` antes de `cobertura` y otro que
+   * lo hace después) generan strings distintos y la misma alarma termina en dos grupos en
+   * vez de uno, sin que nadie lo haya decidido así. Ordenar las claves antes de serializar
+   * lo vuelve una decisión explícita en vez de un efecto colateral del orden de inserción.
+   */
+  _claveOrigen: function(origen) {
+    return JSON.stringify(origen, Object.keys(origen).sort());
+  },
+
   _obtenerClaveCliente: function(key, mapaClientes) {
     const codigoCliente = key.split('-')[0];
     return mapaClientes[codigoCliente] || `No encontrado (${codigoCliente})`;
@@ -221,7 +239,9 @@ const AlarmProcessor = {
 
     let resultado;
     // Implementación de Patrón Strategy: Busca el formateador, si no existe devuelve por defecto.
-    if (AlarmFormatters.manejadores[tipoAlarma]) {
+    // hasOwnProperty explícito: tipoAlarma sale de la hoja "Tipos de Alarmas", y un valor
+    // como "constructor" no debe resolver contra el prototipo de Object.
+    if (Object.prototype.hasOwnProperty.call(AlarmFormatters.manejadores, tipoAlarma)) {
       resultado = AlarmFormatters.manejadores[tipoAlarma](summaryResto, target, description);
     } else {
       resultado = { incluir: true, nuevoTarget: target, nuevoSummary: summaryResto };
@@ -263,11 +283,16 @@ const AlarmProcessor = {
       const p2 = regla.pod.toString().toUpperCase().replace(/POD/g, '').trim();
       if (regla.pod !== 'TODOS' && p1 !== p2) continue;
       
-      // 3. Validar Cliente
-      if (regla.cliente !== 'TODOS' && regla.cliente.trim() !== cliente.trim()) continue;
-      
-      // 4. Validar Tipo Alarma
-      if (regla.tipoAlarma !== 'TODAS' && regla.tipoAlarma.trim() !== tipoAlarma.trim()) continue;
+      // 3. Validar Cliente (normalizado como el POD: mayúsculas/minúsculas y espacios de
+      // más no deberían hacer fallar una regla cargada a mano)
+      const cliente1 = cliente.toString().trim().toUpperCase();
+      const cliente2 = regla.cliente.toString().trim().toUpperCase();
+      if (regla.cliente !== 'TODOS' && cliente1 !== cliente2) continue;
+
+      // 4. Validar Tipo Alarma (misma normalización)
+      const tipo1 = tipoAlarma.toString().trim().toUpperCase();
+      const tipo2 = regla.tipoAlarma.toString().trim().toUpperCase();
+      if (regla.tipoAlarma !== 'TODAS' && tipo1 !== tipo2) continue;
       
       // 5. Validar Campo y Condición
       if (regla.campo !== 'CUALQUIERA' && regla.valor !== '') {

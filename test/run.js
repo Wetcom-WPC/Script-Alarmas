@@ -122,7 +122,44 @@ function main() {
   const cierre = require('./cierreJira.test').correr();
   console.log(`${cierre.total - cierre.fallos}/${cierre.total} casos ok`);
 
-  const totalFallos = fallos + exc.fallos + dedup.fallos + entorno.fallos + cierre.fallos;
+  console.log('\n── Interpretación de vencimiento (Fechas) ──');
+  const fechas = require('./fechas.test').correr();
+  console.log(`${fechas.total - fechas.fallos}/${fechas.total} casos ok`);
+
+  console.log('\n── Guardia: fin de semana / feriados ──');
+  const tools = require('./tools.test').correr();
+  console.log(`${tools.total - tools.fallos}/${tools.total} casos ok`);
+
+  console.log('\n── Reintento HTTP ──');
+  const http = require('./http.test').correr();
+  console.log(`${http.total - http.fallos}/${http.total} casos ok`);
+
+  console.log('\n── MessageFormatter (Slack / HTML) ──');
+  const formatter = require('./messageFormatter.test').correr();
+  console.log(`${formatter.total - formatter.fallos}/${formatter.total} casos ok`);
+
+  console.log('\n── DataRepository (armado de mapas) ──');
+  const repo = require('./dataRepository.test').correr();
+  console.log(`${repo.total - repo.fallos}/${repo.total} casos ok`);
+
+  console.log('\n── WebApp (validación de borrador) ──');
+  const webapp = require('./webapp.test').correr();
+  console.log(`${webapp.total - webapp.fallos}/${webapp.total} casos ok`);
+
+  console.log('\n── Limpieza de excepciones vencidas ──');
+  const limpieza = require('./limpieza.test').correr();
+  console.log(`${limpieza.total - limpieza.fallos}/${limpieza.total} casos ok`);
+
+  console.log('\n── Mensajes de error de procesamiento ──');
+  const errProc = require('./erroresProcesamiento.test').correr();
+  console.log(`${errProc.total - errProc.fallos}/${errProc.total} casos ok`);
+
+  console.log('\n── AlarmParser: extracción de Target ──');
+  const alarmParser = require('./alarmParser.test').correr();
+  console.log(`${alarmParser.total - alarmParser.fallos}/${alarmParser.total} casos ok`);
+
+  const totalFallos = fallos + exc.fallos + dedup.fallos + entorno.fallos + cierre.fallos + fechas.fallos + tools.fallos + http.fallos
+    + formatter.fallos + repo.fallos + webapp.fallos + limpieza.fallos + errProc.fallos + alarmParser.fallos;
   if (totalFallos > 0) {
     console.error(`\n${totalFallos} caso(s) con diferencias.`);
     process.exit(1);
