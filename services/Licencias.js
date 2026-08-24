@@ -1388,8 +1388,8 @@ function enviarAlertaLicenciasVeeam(cliente, destinatarioRaw, todasLasLicencias)
   cuerpoHtml += `</div><p style="margin-top: 25px; font-size: 12px; color: #666;">Saludos,<br><b>Wetcom Proactive Center</b></p></div>`;
   
   if (emailsAEnviar) {
-    EmailService.enviarReporteGuardia(emailsAEnviar, asunto, cuerpoHtml););
-    }
+    EmailService.enviarReporteGuardia(emailsAEnviar, asunto, cuerpoHtml);
+
   }
 }
 
