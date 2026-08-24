@@ -11,6 +11,11 @@ function onOpen() {
     .addSeparator()
     .addItem('Actualizar Dropdowns de Clientes', 'actualizarDropdownsClientes')
     .addToUi();
+
+  ui.createMenu('Ejecutar reporte de licencias')
+    .addItem('Auditar vSphere (Cliente Seleccionado)', 'ejecutarClienteSeleccionadoLicencias')
+    .addItem('Auditar Veeam (Cliente Seleccionado)', 'ejecutarClienteSeleccionadoVeeamLic')
+    .addToUi();
 }
 
 /**
