@@ -841,13 +841,7 @@ function enviarAlertaSlackDetallada(cliente, alertas) {
 /**
  * Crea un menú personalizado en la hoja de cálculo al abrirse.
  */
-function onOpen() {
-  const ui = SpreadsheetApp.getUi();
-  ui.createMenu('Ejecutar reporte de licencias')
-    .addItem('Auditar vSphere (Cliente Seleccionado)', 'ejecutarClienteSeleccionado')
-    .addItem('Auditar Veeam (Cliente Seleccionado)', 'ejecutarClienteSeleccionadoVeeamLic')
-    .addToUi();
-}
+
 
 /**
  * Detecta la fila seleccionada por el usuario y ejecuta la auditoría 
