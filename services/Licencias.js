@@ -1441,3 +1441,24 @@ function ejecutarClienteSeleccionadoVeeamLic() {
     ss.toast("Proceso finalizado.", "🏁 Wetcom Ops", 3);
   }
 }
+
+// --- BACKOFF PARA DRIVE API ---
+function executeDriveWithBackoff(fn, maxRetries) {
+  const retries = maxRetries || 3;
+  let attempt = 0;
+  while (attempt < retries) {
+    try {
+      return fn();
+    } catch (e) {
+      attempt++;
+      const msg = e.message.toLowerCase();
+      if ((msg.includes("rate limit") || msg.includes("limit exceeded") || msg.includes("too many requests") || msg.includes("service error")) && attempt < retries) {
+        const sleepTime = Math.pow(2, attempt) * 1000 + Math.random() * 500;
+        Logger.log([DRIVE BACKOFF] Intento \ falló por límite de tasa. Reintentando en \ms... Error: \);
+        Utilities.sleep(sleepTime);
+      } else {
+        throw e;
+      }
+    }
+  }
+}
