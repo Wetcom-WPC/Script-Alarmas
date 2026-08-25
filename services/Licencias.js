@@ -1,4 +1,14 @@
 
+function escribirLogAuditoria(hoja, fila, col, exito, detalle) {
+  try {
+    const celda = hoja.getRange(fila, col);
+    celda.setValue(detalle);
+    celda.setBackground(exito ? '#d9ead3' : '#f4cccc');
+  } catch (e) {
+    console.warn("Error escribiendo log en planilla: " + e.message);
+  }
+}
+
 /**
  * =================================================================
  * SCRIPT DE AUDITORÍA DE LICENCIAS UNIFICADO (vSphere + Veeam)
@@ -285,9 +295,20 @@ function procesarTodasLasLicencias(opciones) {
 
       console.log(`\n🔎 Procesando fila ${i} - Cliente: ${cliente} (POD: ${pod})...`);
       const erroresAntes = summaryReport.errores.length;
-      procesarInfraestructuraCliente(cliente, emailDestino, folderId, pod, summaryReport);
+        try {
+          const resultado = procesarInfraestructuraCliente(cliente, emailDestino, folderId, pod, summaryReport);
+          let detalleLog = "📁 Ruta: " + resultado.ruta + "\n📄 Archivos:\n" + resultado.archivos.join("\n");
+          if (summaryReport.errores.length > erroresAntes) {
+            escribirLogAuditoria(hoja, i + 1, 7, false, "❌ Errores:\n" + summaryReport.errores[summaryReport.errores.length - 1].detalle);
+          } else {
+            escribirLogAuditoria(hoja, i + 1, 7, true, detalleLog);
+          }
+        } catch (e) {
+          escribirLogAuditoria(hoja, i + 1, 7, false, "❌ Error Crítico: " + e.message);
+          summaryReport.errores.push({ detalle: e.message });
+        }
 
-      // Sólo marcamos como enviado si no hubo error: un cliente fallido puede reintentarse.
+        // Sólo marcamos como enviado si no hubo error: un cliente fallido puede reintentarse.
       if (summaryReport.errores.length === erroresAntes) {
         enviados.add(marca);
         guardarEnviados(props, enviados);
@@ -908,14 +929,21 @@ function ejecutarClienteSeleccionadoLicencias() {
   
   try {
     const resultado = procesarInfraestructuraCliente(cliente, emailDestino, folderId, pod, summaryReport);
+      
+      let detalleLog = "📁 Ruta: " + resultado.ruta + "\n📄 Archivos:\n" + resultado.archivos.join("\n");
+      
+      // 6. Informar el resultado en la UI de la planilla
+      if (summaryReport.errores.length > 0) {
+        escribirLogAuditoria(hoja, fila, 7, false, "❌ Errores:\n" + summaryReport.errores[0].detalle);
+        ui.alert("❌ Finalizado con Errores", `Hubo un problema al procesar el cliente ${cliente}:\n${summaryReport.errores[0].detalle}`, ui.ButtonSet.OK);
+      } else {
+        escribirLogAuditoria(hoja, fila, 7, true, detalleLog);
+        ui.alert("✅ Auditoría Exitosa", `El reporte de ${cliente} ha sido procesado y enviado a ${emailDestino} de forma conforme.`, ui.ButtonSet.OK);
+      }
+    } catch (error) {
+      escribirLogAuditoria(hoja, fila, 7, false, "❌ Error Crítico: " + error.message);
+      ui.alert("❌ Error Crítico", `Ocurrió un error inesperado en el motor: ${error.message}`, ui.ButtonSet.OK);
     
-    // 6. Informar el resultado en la UI de la planilla
-    if (summaryReport.errores.length > 0) {
-      ui.alert("❌ Finalizado con Errores", `Hubo un problema al procesar el cliente ${cliente}:\n${summaryReport.errores[0].detalle}`, ui.ButtonSet.OK);
-    } else {
-      ui.alert("✅ Auditoría Exitosa", `El reporte de ${cliente} ha sido procesado y enviado a ${emailDestino} de forma conforme.`, ui.ButtonSet.OK);
-    }
-  } catch (error) {
     ui.alert("❌ Error Crítico", `Ocurrió un error inesperado en el motor: ${error.message}`, ui.ButtonSet.OK);
   } finally {
     // Quitar la notificación flotante
@@ -1078,9 +1106,20 @@ function procesarTodasLasLicenciasVeeam(opciones) {
 
       console.log(`\n🔎 Procesando fila ${i} - Cliente: ${cliente} (Veeam)...`);
       const erroresAntes = summaryReport.errores.length;
-      procesarInfraestructuraClienteVeeam(cliente, emailDestino, folderId, pod, summaryReport);
+        try {
+          const res = procesarInfraestructuraClienteVeeam(cliente, emailDestino, folderId, pod, summaryReport);
+          let detalleLog = "📁 Ruta: " + res.ruta + "\n📄 Archivos:\n" + res.archivos.join("\n");
+          if (summaryReport.errores.length > erroresAntes) {
+            escribirLogAuditoria(hoja, i + 1, 8, false, "❌ Errores:\n" + summaryReport.errores[summaryReport.errores.length - 1].detalle);
+          } else {
+            escribirLogAuditoria(hoja, i + 1, 8, true, detalleLog);
+          }
+        } catch (e) {
+          escribirLogAuditoria(hoja, i + 1, 8, false, "❌ Error Crítico: " + e.message);
+          summaryReport.errores.push({ detalle: e.message });
+        }
 
-      if (summaryReport.errores.length === erroresAntes) {
+        if (summaryReport.errores.length === erroresAntes) {
         enviados.add(marca);
         props.setProperty(VEEAM_LIC_PROP_ENVIADOS, JSON.stringify(Array.from(enviados)));
       }
@@ -1434,12 +1473,20 @@ function ejecutarClienteSeleccionadoVeeamLic() {
   
   try {
     const res = procesarInfraestructuraClienteVeeam(cliente, emailDestino, folderId, pod, summaryReport);
-    if (summaryReport.errores.length > 0) {
-      ui.alert("❌ Errores", summaryReport.errores[0].detalle, ui.ButtonSet.OK);
-    } else {
-      ui.alert("✅ Éxito", `Reporte enviado a ${emailDestino}.`, ui.ButtonSet.OK);
-    }
-  } catch (error) {
+      
+      let detalleLog = "📁 Ruta: " + res.ruta + "\n📄 Archivos:\n" + res.archivos.join("\n");
+
+      if (summaryReport.errores.length > 0) {
+        escribirLogAuditoria(hoja, fila, 8, false, "❌ Errores:\n" + summaryReport.errores[0].detalle);
+        ui.alert("❌ Errores", summaryReport.errores[0].detalle, ui.ButtonSet.OK);
+      } else {
+        escribirLogAuditoria(hoja, fila, 8, true, detalleLog);
+        ui.alert("✅ Éxito", `Reporte enviado a ${emailDestino}.`, ui.ButtonSet.OK);
+      }
+    } catch (error) {
+      escribirLogAuditoria(hoja, fila, 8, false, "❌ Error Crítico: " + error.message);
+      ui.alert("❌ Error Crítico", error.message, ui.ButtonSet.OK);
+    
     ui.alert("❌ Error Crítico", error.message, ui.ButtonSet.OK);
   } finally {
     ss.toast("Proceso finalizado.", "🏁 Wetcom Ops", 3);
