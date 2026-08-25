@@ -297,7 +297,7 @@ function procesarTodasLasLicencias(opciones) {
       const erroresAntes = summaryReport.errores.length;
         try {
           const resultado = procesarInfraestructuraCliente(cliente, emailDestino, folderId, pod, summaryReport);
-          let detalleLog = "📁 Ruta: " + resultado.ruta + "\n📄 Archivos:\n" + resultado.archivos.join("\n");
+          let detalleLog = "📁 Ruta: " + resultado.ruta + "\n📄 Archivos:\n" + resultado.archivos;
           if (summaryReport.errores.length > erroresAntes) {
             escribirLogAuditoria(hoja, i + 1, 7, false, "❌ Errores:\n" + summaryReport.errores[summaryReport.errores.length - 1].detalle);
           } else {
@@ -930,7 +930,7 @@ function ejecutarClienteSeleccionadoLicencias() {
   try {
     const resultado = procesarInfraestructuraCliente(cliente, emailDestino, folderId, pod, summaryReport);
       
-      let detalleLog = "📁 Ruta: " + resultado.ruta + "\n📄 Archivos:\n" + resultado.archivos.join("\n");
+      let detalleLog = "📁 Ruta: " + resultado.ruta + "\n📄 Archivos:\n" + resultado.archivos;
       
       // 6. Informar el resultado en la UI de la planilla
       if (summaryReport.errores.length > 0) {
@@ -1106,7 +1106,7 @@ function procesarTodasLasLicenciasVeeam(opciones) {
       const erroresAntes = summaryReport.errores.length;
         try {
           const res = procesarInfraestructuraClienteVeeam(cliente, emailDestino, folderId, pod, summaryReport);
-          let detalleLog = "📁 Ruta: " + res.ruta + "\n📄 Archivos:\n" + res.archivos.join("\n");
+          let detalleLog = "📁 Ruta: " + res.ruta + "\n📄 Archivos:\n" + res.archivos;
           if (summaryReport.errores.length > erroresAntes) {
             escribirLogAuditoria(hoja, i + 1, 8, false, "❌ Errores:\n" + summaryReport.errores[summaryReport.errores.length - 1].detalle);
           } else {
@@ -1472,7 +1472,7 @@ function ejecutarClienteSeleccionadoVeeamLic() {
   try {
     const res = procesarInfraestructuraClienteVeeam(cliente, emailDestino, folderId, pod, summaryReport);
       
-      let detalleLog = "📁 Ruta: " + res.ruta + "\n📄 Archivos:\n" + res.archivos.join("\n");
+      let detalleLog = "📁 Ruta: " + res.ruta + "\n📄 Archivos:\n" + res.archivos;
 
       if (summaryReport.errores.length > 0) {
         escribirLogAuditoria(hoja, fila, 8, false, "❌ Errores:\n" + summaryReport.errores[0].detalle);
