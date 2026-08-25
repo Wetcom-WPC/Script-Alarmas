@@ -943,8 +943,6 @@ function ejecutarClienteSeleccionadoLicencias() {
     } catch (error) {
       escribirLogAuditoria(hoja, fila, 7, false, "❌ Error Crítico: " + error.message);
       ui.alert("❌ Error Crítico", `Ocurrió un error inesperado en el motor: ${error.message}`, ui.ButtonSet.OK);
-    
-    ui.alert("❌ Error Crítico", `Ocurrió un error inesperado en el motor: ${error.message}`, ui.ButtonSet.OK);
   } finally {
     // Quitar la notificación flotante
     ss.toast("Proceso finalizado.", "🏁 Wetcom Ops", 3);
@@ -1486,8 +1484,6 @@ function ejecutarClienteSeleccionadoVeeamLic() {
     } catch (error) {
       escribirLogAuditoria(hoja, fila, 8, false, "❌ Error Crítico: " + error.message);
       ui.alert("❌ Error Crítico", error.message, ui.ButtonSet.OK);
-    
-    ui.alert("❌ Error Crítico", error.message, ui.ButtonSet.OK);
   } finally {
     ss.toast("Proceso finalizado.", "🏁 Wetcom Ops", 3);
 
