@@ -1422,7 +1422,11 @@ function ejecutarClienteSeleccionadoVeeamLic() {
     return ui.alert("⚠️ Cliente Inactivo", "El cliente está inactivo.", ui.ButtonSet.OK);
   }
   
-  const respuesta = ui.alert("Confirmar", `¿Auditar Veeam para ${cliente}?`, ui.ButtonSet.YES_NO);
+  const respuesta = ui.alert(
+      "Confirmar Auditoría Veeam",
+      `¿Deseas lanzar la auditoría de licencias Veeam para el cliente?\n\n• Cliente: ${cliente}\n• POD: ${pod || 'N/A'}\n• Destinatario: ${emailDestino}`,
+      ui.ButtonSet.YES_NO
+    );
   if (respuesta !== ui.Button.YES) return;
   
   const summaryReport = { exitos: [], advertencias: [], errores: [], tareasCerradas: 0 };
@@ -1461,4 +1465,38 @@ function executeDriveWithBackoff(fn, maxRetries) {
       }
     }
   }
+}
+
+// --- PARSER ROBUSTO ---
+function parseCsvRobust(csvText, separator = null) {
+  if (!csvText) return [];
+  const lines = csvText.split(/\r\n|\n|\r/);
+  const sep = separator || detectarSeparadorCsv(lines);
+
+  const result = [];
+  for (const line of lines) {
+    if (line.trim() === '') continue;
+    const row = [];
+    let currentField = '';
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      const nextChar = i < line.length - 1 ? line[i+1] : null;
+
+      if (char === '"' && inQuotes && nextChar === '"') {
+        currentField += '"';
+        i++; // Skip next quote
+      } else if (char === '"') {
+        inQuotes = !inQuotes;
+      } else if (char === sep && !inQuotes) {
+        row.push(currentField);
+        currentField = '';
+      } else {
+        currentField += char === '|' ? '-' : char;
+      }
+    }
+    row.push(currentField);
+    result.push(row);
+  }
+  return result;
 }
