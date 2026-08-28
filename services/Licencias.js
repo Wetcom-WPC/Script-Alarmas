@@ -115,8 +115,8 @@ function instalarTriggerMensual() {
   triggers.forEach(t => {
     if (t.getHandlerFunction() === 'gatilloDiarioGuardián') ScriptApp.deleteTrigger(t);
   });
-  ScriptApp.newTrigger('gatilloDiarioGuardián').timeBased().everyDays(1).atHour(16).create();
-  console.log("✅ Trigger Diario (Guardián) instalado a las 16hs (4 PM).");
+  ScriptApp.newTrigger('gatilloDiarioGuardián').timeBased().everyDays(1).atHour(7).create();
+  console.log("✅ Trigger Diario (Guardián) instalado a las 7 AM.");
   console.warn("⚠️ getProjectTriggers() sólo ve los triggers de TU usuario. Si otra persona " +
                "instaló el suyo, sigue vivo y va a duplicar la corrida. Revisá Activadores > " +
                "columna 'Propiedad de'; el dueño tiene que borrarlo desde su cuenta.");
@@ -990,8 +990,8 @@ function instalarTriggerVeeamLic() {
   triggers.forEach(t => {
     if (t.getHandlerFunction() === 'gatilloDiarioVeeamLic') ScriptApp.deleteTrigger(t);
   });
-  ScriptApp.newTrigger('gatilloDiarioVeeamLic').timeBased().everyDays(1).atHour(17).create();
-  console.log("✅ Trigger Diario Veeam (Guardián) instalado a las 17hs (5 PM).");
+  ScriptApp.newTrigger('gatilloDiarioVeeamLic').timeBased().everyDays(1).atHour(8).create();
+  console.log("✅ Trigger Diario Veeam (Guardián) instalado a las 8 AM.");
 }
 
 // 3. El Guardián (Se ejecuta todos los días pero solo avanza el último día hábil)
