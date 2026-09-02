@@ -839,7 +839,7 @@ function enviarAlertaLicencias(cliente, destinatarioRaw, todasLasLicencias) {
     cuerpoHtml += `</table></div>`;
   }
 
-  cuerpoHtml += `</div><p style="margin-top: 25px; font-size: 12px; color: #666;">Saludos,<br><b>Wetcom Proactive Center</b></p></div>`;
+  cuerpoHtml += `<p style="font-size: 14px; margin-top: 20px;">Este reporte es meramente informativo.</p></div><p style="margin-top: 25px; font-size: 12px; color: #666;">Saludos,<br><b>Wetcom Proactive Center</b></p></div>`;
   
   if (emailsAEnviar) {
     // Adaptado para Script-Alarmas
@@ -1428,7 +1428,7 @@ function enviarAlertaLicenciasVeeam(cliente, destinatarioRaw, todasLasLicencias)
     }
   }
 
-  cuerpoHtml += `</div><p style="margin-top: 25px; font-size: 12px; color: #666;">Saludos,<br><b>Wetcom Proactive Center</b></p></div>`;
+  cuerpoHtml += `<p style="font-size: 14px; margin-top: 20px;">Este reporte es meramente informativo.</p></div><p style="margin-top: 25px; font-size: 12px; color: #666;">Saludos,<br><b>Wetcom Proactive Center</b></p></div>`;
   
   if (emailsAEnviar) {
     EmailService.enviarReporteGuardia(emailsAEnviar, asunto, cuerpoHtml);
