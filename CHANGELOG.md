@@ -4,6 +4,31 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y el proyecto se adhiere a [Semantic Versioning](https://semver.org/).
 
+## [10.10.2] - 2026-09-09
+
+Tres fixes de producción encadenados por el mismo reporte: el borrador de correo que genera
+el botón "Generar correo para ..." de Slack. El tercero destapó un bug de parseo que venía
+publicando alarmas con el nombre equivocado, en Slack y en el correo al cliente.
+
+### Fixed
+- **Asunto del borrador con `undefined` (`WebApp.js`, `utils/MessageFormatter.js`):** el nombre de la alarma viaja en un JSON que escribe `MessageFormatter` y queda persistido en Drive; el que lo lee es el deployment publicado en `Config.URL_WEB_APP`. Son dos ejecuciones distintas y no necesariamente del mismo código. La v10.10.0 renombró el campo `alarmaPricipal` → `alarmaPrincipal` **en los dos lados a la vez**, asumiendo que siempre corren la misma versión; cuando el deployment que atiende el enlace es anterior a ese cambio, busca el nombre viejo, no lo encuentra, y el asunto sale como `undefined - WETCOM - Cliente - dd/MM/yyyy`. El cuerpo del correo salía bien porque viaja pre-renderizado en el payload.
+  - `WebApp.js`: el asunto pasa por `_alarmaPrincipalDe()`, que acepta los dos nombres del campo y cae a `"Incidentes Varios"` ante un valor ausente o inservible, en vez de dejar que un `undefined` llegue al asunto.
+  - `MessageFormatter.js`: el payload escribe **también** el alias histórico, para que un lector previo a v10.10.0 arme bien el asunto igual. Se puede borrar cuando `Config.URL_WEB_APP` apunte con certeza a un deployment posterior (ver la nota operativa).
+- **Viñeta suelta en el DETALLE del correo (`utils/MessageFormatter.js`):** en la tabla del correo, DETALLE era el único campo que se renderizaba como lista; ALARMA, FECHA, el target y VCENTER son todos texto plano. Esa `<ul>` es un resto del formato de Slack, donde el detalle cuelga indentado del target y la viñeta marca esa jerarquía. En el correo no hay jerarquía que marcar —la celda ya está rotulada DETALLE—, así que la viñeta no separaba nada y quedaba como un punto suelto. Ahora un detalle de una sola línea va como texto plano; con varias líneas se mantiene la lista, porque ahí cada línea es un campo distinto (`Descripcion`, `Health Status`, ...) y sin viñeta se leerían como un solo párrafo. El color pasa a la celda y las líneas vacías se descartan en vez de generar viñetas huérfanas. **El formato de Slack no se toca:** allí la viñeta sí marca la indentación.
+- **Alarmas `<target> - [alarm.X]` colapsando a un mismo nombre (`core/AlarmParser.js`):** SOPFALABEL-26796 es una alarma de vencimiento de certificado SSL y se publicó como *"Alarma por estado de licencia"*. La planilla ya tenía la fila correcta (`CertificateStatusAlarm` → *"Alarma de estado de Certificado"*); nunca se usaba porque el parser no llegaba a extraer ese ID. Tres defectos encadenados:
+  - El normalizador de identificadores matcheaba también la forma que **ya** estaba canónica y le anteponía un segundo punto: `[alarm.X]` quedaba como `[alarm..X]`. Se agregó un `(?!\.)`.
+  - El patrón genérico `"<target> - <texto>"` cortaba en el primer punto —que ahora era el de `[alarm.`— y devolvía `[alarm` como nombre de alarma. **Toda** alarma de esa forma colapsaba al mismo nombre: el que tuviera cargada la fila `[alarm` de la planilla. Se agregó un `(?!\[?alarm\.)` para que ese patrón le ceda el paso al específico que existe justo para los identificadores canónicos, unas líneas más abajo.
+  - Al quitar el identificador del medio del summary, el detalle quedaba con el target repetido y un espacio doble (`"Datacenters -  Certificate..."`). El recorte pasa a hacerse por posición y descarta ese prefijo, que ya se publica en su propia fila.
+
+### Added
+- **Tests:** 11 casos nuevos — 4 en `test/webapp.test.js` (resolución del nombre de alarma del asunto, incluido el alias viejo), 4 en `test/messageFormatter.test.js` (una línea sin viñeta, varias líneas con lista, el texto por defecto y el escapado del detalle) y 3 en `test/alarmParser.test.js` (con el summary literal de SOPFALABEL-26796 y la verificación de que dos alarmas distintas ya no colapsan). Suite total: 157/157.
+- El único golden que cambia es el que congelaba el punto de más: `"Alarma desconocida [.EstoNoExisteEnLaPlanilla]"` → sin el punto. Los 31 casos siguen pasando.
+
+### Nota operativa
+- **La fila `[alarm` de la hoja "Tipos de Alarmas" conviene borrarla.** Con el fix ya no se extrae nunca ese nombre, así que queda muerta; pero mientras exista vuelve a tapar cualquier bug parecido en vez de dejar que se note.
+- Las alarmas que caían en esa fila pasan a resolver por su **ID real**. Las que todavía no tengan su fila cargada van a salir como `Alarma desconocida [X]` con su warning — que es lo correcto, y dice exactamente cuál falta. Es ruido esperable las primeras corridas, e información que hasta ahora el sistema estaba ocultando.
+- **Pendiente:** `Config.URL_WEB_APP` apunta al deployment `AKfycbw-ZHuJoFY…`, que no figura entre los deployments de este proyecto (`clasp` reporta uno solo, `AKfycbyDbPTRzK9…@HEAD`). El asunto sale bien gracias al alias, pero el desfasaje entre el código que escribe el borrador y el que lo lee sigue ahí, y es el que va a morder la próxima vez que cambie ese contrato.
+
 ## [10.10.1] - 2026-08-18
 
 Hotfix de producción. Detectado en vivo: la excepción `Tempora_Macro` (Banco Macro) siguió

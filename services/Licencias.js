@@ -839,7 +839,7 @@ function enviarAlertaLicencias(cliente, destinatarioRaw, todasLasLicencias) {
     cuerpoHtml += `</table></div>`;
   }
 
-  cuerpoHtml += `</div><p style="margin-top: 25px; font-size: 12px; color: #666;">Saludos,<br><b>Wetcom Proactive Center</b></p></div>`;
+  cuerpoHtml += `<p style="font-size: 14px; margin-top: 20px;">Este reporte es meramente informativo.</p></div><p style="margin-top: 25px; font-size: 12px; color: #666;">Saludos,<br><b>Wetcom Proactive Center</b></p></div>`;
   
   if (emailsAEnviar) {
     // Adaptado para Script-Alarmas
@@ -1413,10 +1413,22 @@ function enviarAlertaLicenciasVeeam(cliente, destinatarioRaw, todasLasLicencias)
     let colH = todoOK ? "white" : "#495057";
     let bgS = todoOK ? "#f9fdf9" : "#f8f9fa";
     let colS = todoOK ? "#2b542c" : "#495057";
-    cuerpoHtml += formatTable("SALUDABLE - ESTADO OK / NO UTILIZADAS", sanasEnUso.concat(sinUso), bgH, colH, bgS, colS);
+
+    const servidoresArriba = new Set([...vencidas, ...proximas, ...sanasEnUso].map(x => x.servidor));
+    const sinUsoFiltrado = sinUso.filter(a => {
+      // Filtrar '0 de 0 (Sockets)' si el servidor ya aparece arriba reportando uso
+      if (a.usadas === 0 && a.total === 0 && a.workload === 'Sockets' && servidoresArriba.has(a.servidor)) {
+        return false;
+      }
+      return true;
+    });
+
+    if (sanasEnUso.length > 0 || sinUsoFiltrado.length > 0) {
+      cuerpoHtml += formatTable("SALUDABLE - ESTADO OK / NO UTILIZADAS", sanasEnUso.concat(sinUsoFiltrado), bgH, colH, bgS, colS);
+    }
   }
 
-  cuerpoHtml += `</div><p style="margin-top: 25px; font-size: 12px; color: #666;">Saludos,<br><b>Wetcom Proactive Center</b></p></div>`;
+  cuerpoHtml += `<p style="font-size: 14px; margin-top: 20px;">Este reporte es meramente informativo.</p></div><p style="margin-top: 25px; font-size: 12px; color: #666;">Saludos,<br><b>Wetcom Proactive Center</b></p></div>`;
   
   if (emailsAEnviar) {
     EmailService.enviarReporteGuardia(emailsAEnviar, asunto, cuerpoHtml);

@@ -78,7 +78,7 @@ function _generarBorrador(e) {
     const fechaAsunto = Utilities.formatDate(new Date(), tz, "dd/MM/yyyy");
 
     // El asunto contendrá la alarma principal y el nombre del cliente
-    const asuntoCorreo = `${payloadBorrador.alarmaPrincipal} - WETCOM - ${payloadBorrador.cliente} - ${fechaAsunto}`;
+    const asuntoCorreo = `${_alarmaPrincipalDe(payloadBorrador)} - WETCOM - ${payloadBorrador.cliente} - ${fechaAsunto}`;
 
     // Armar el cuerpo corporativo
     // Nota: Dejamos el espacio final libre para que el operador pueda insertar su firma corporativa de Gmail.
@@ -122,6 +122,33 @@ function _generarBorrador(e) {
   } catch (err) {
     return HtmlService.createHtmlOutput(`<div style="font-family: sans-serif; text-align: center; margin-top: 50px;"><h2 style="color: #d9534f;">❌ Ocurrió un error crítico:</h2><p>${MessageFormatter._escapeHTML(err.message)}</p></div>`);
   }
+}
+
+/**
+ * Nombre de la alarma que encabeza el asunto del correo.
+ *
+ * Este dato no lo produce el WebApp: viaja en un JSON que escribió MessageFormatter y que
+ * quedó persistido en Drive. Lector y escritor son dos ejecuciones distintas, y no
+ * necesariamente del mismo código: el enlace de Slack lo atiende el deployment publicado
+ * en Config.URL_WEB_APP, que puede ser anterior al que generó el borrador. Por eso acá el
+ * campo se trata como dato de entrada y no como algo garantizado:
+ *
+ *  - se acepta 'alarmaPricipal', el nombre con el typo que el campo tuvo hasta v10.10.0
+ *    (AUDITORIA.md, punto 17), para no romper los borradores generados antes de esa
+ *    corrección; y
+ *  - ante un valor ausente o inservible se cae al mismo texto genérico que usa
+ *    MessageFormatter, en vez de dejar que un undefined llegue al asunto — que es
+ *    justamente lo que se veía: "undefined - WETCOM - Cliente - dd/MM/yyyy".
+ */
+function _alarmaPrincipalDe(payload) {
+  const candidatos = [payload.alarmaPrincipal, payload.alarmaPricipal];
+
+  for (let i = 0; i < candidatos.length; i++) {
+    const valor = candidatos[i];
+    if (typeof valor === 'string' && valor.trim() !== '') return valor.trim();
+  }
+
+  return "Incidentes Varios";
 }
 
 /**

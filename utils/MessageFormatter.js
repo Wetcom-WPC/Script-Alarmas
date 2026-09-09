@@ -28,10 +28,18 @@ const MessageFormatter = {
         if (Config.URL_WEB_APP && Config.URL_WEB_APP.startsWith("http")) {
           try {
             const htmlBorrador = this._generarDetalleAlarmasHTML(alarmasCliente);
+            const alarmaPrincipal = Object.keys(alarmasCliente)[0] || "Incidentes Varios";
             const payloadBorrador = {
               cliente: cliente,
               pod: pod,
-              alarmaPrincipal: Object.keys(alarmasCliente)[0] || "Incidentes Varios",
+              alarmaPrincipal: alarmaPrincipal,
+              // Alias con el typo que el campo tuvo hasta v10.10.0. Se sigue escribiendo
+              // porque el que lee este JSON es el deployment publicado del WebApp, que
+              // puede ser anterior a esa corrección: si ese lector sólo conoce
+              // 'alarmaPricipal', sin el alias arma el asunto con "undefined". Se puede
+              // borrar cuando Config.URL_WEB_APP apunte con certeza a un deployment
+              // posterior a v10.10.0.
+              alarmaPricipal: alarmaPrincipal,
               html: htmlBorrador
             };
             
@@ -342,22 +350,28 @@ const MessageFormatter = {
           `;
         }
         
-        let summariesHTML = '<ul style="margin: 0; padding-left: 20px; color: #666;">';
-        if (group.summaries.length > 0) {
-          group.summaries.forEach(summary => {
-            if (summary.indexOf('\n') !== -1) {
-              const lines = summary.split('\n');
-              for (let i = 0; i < lines.length; i++) {
-                summariesHTML += `<li>${this._escapeHTML(lines[i].trim())}</li>`;
-              }
-            } else {
-              summariesHTML += `<li>${this._escapeHTML(summary)}</li>`;
-            }
+        // Líneas del detalle ya aplanadas: un summaryResto puede traer varios campos
+        // separados por saltos de línea (así los emite VropsStandardParser, uno por campo).
+        const lineasDetalle = [];
+        group.summaries.forEach(summary => {
+          summary.split('\n').forEach(linea => {
+            const limpia = linea.trim();
+            if (limpia !== '') lineasDetalle.push(limpia);
           });
-        } else {
-          summariesHTML += `<li>Sin detalles adicionales</li>`;
-        }
-        summariesHTML += '</ul>';
+        });
+        if (lineasDetalle.length === 0) lineasDetalle.push('Sin detalles adicionales');
+
+        // Con una sola línea el detalle va como texto plano. La viñeta es un resto del
+        // formato de Slack, donde el detalle cuelga indentado del target: acá, dentro de
+        // una celda que ya está rotulada DETALLE, no separa nada y queda como el único
+        // renglón con viñeta de una tabla en la que todos los demás campos son texto plano.
+        // Con varias líneas la lista sí trabaja: cada una es un campo distinto
+        // (Descripcion, Health Status, ...) y sin viñeta se leerían como un solo párrafo.
+        const summariesHTML = lineasDetalle.length === 1
+          ? this._escapeHTML(lineasDetalle[0])
+          : '<ul style="margin: 0; padding-left: 20px;">'
+              + lineasDetalle.map(linea => `<li>${this._escapeHTML(linea)}</li>`).join('')
+              + '</ul>';
 
         detalleHTML += `
         <table style="width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 20px; border: 1px solid #e0e0e0; background-color: #fff;">
@@ -379,7 +393,7 @@ const MessageFormatter = {
             ${clusterHtml}
             <tr>
               <td style="padding: 12px 15px; font-weight: bold; color: #555; background-color: #f9f9f9; text-transform: uppercase; vertical-align: top;">DETALLE</td>
-              <td style="padding: 12px 15px; vertical-align: top;">${summariesHTML}</td>
+              <td style="padding: 12px 15px; color: #666; vertical-align: top;">${summariesHTML}</td>
             </tr>
           </tbody>
         </table>
