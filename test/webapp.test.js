@@ -17,6 +17,13 @@ function validar(payload) {
   return fn(payload);
 }
 
+function alarmaPrincipal(payload) {
+  const { obtener } = crearSandbox();
+  const fn = obtener('_alarmaPrincipalDe');
+  if (!fn) throw new Error('No se pudo cargar _alarmaPrincipalDe en el sandbox.');
+  return fn(payload);
+}
+
 const CASOS = [
   {
     nombre: 'Payload válido (cliente y html como string) pasa',
@@ -70,6 +77,59 @@ const CASOS = [
       if (validar({ algunOtroCampo: 'esto no es un borrador de alarmas' })) {
         return 'un JSON con otra forma no debería colarse como si fuera un borrador válido';
       }
+      return null;
+    }
+  },
+  {
+    nombre: 'El asunto usa "alarmaPrincipal" cuando el borrador lo trae',
+    correr: () => {
+      const alarma = alarmaPrincipal({ cliente: 'Petersen', html: '<div></div>', alarmaPrincipal: 'Desconexión de Host' });
+      if (alarma !== 'Desconexión de Host') return `se esperaba el nombre de la alarma, llegó "${alarma}"`;
+      return null;
+    }
+  },
+  {
+    nombre: 'Un borrador viejo (con el typo "alarmaPricipal") sigue dando el nombre real, no "undefined"',
+    correr: () => {
+      // El enlace de Slack vive 6 horas y lo atiende el deployment publicado del WebApp,
+      // que puede ser anterior o posterior al código que escribió el borrador. Cuando el
+      // nombre del campo no coincide entre ambos lados, el asunto salía
+      // "undefined - WETCOM - Petersen - dd/MM/yyyy".
+      const alarma = alarmaPrincipal({ cliente: 'Petersen', html: '<div></div>', alarmaPricipal: 'Desconexión de Host' });
+      if (alarma !== 'Desconexión de Host') return `se esperaba el nombre de la alarma, llegó "${alarma}"`;
+      return null;
+    }
+  },
+  {
+    nombre: 'Sin el campo, o con un valor inservible, cae al texto genérico en vez de "undefined"',
+    correr: () => {
+      const casos = [
+        { cliente: 'Petersen', html: '<div></div>' },
+        { cliente: 'Petersen', html: '<div></div>', alarmaPrincipal: '' },
+        { cliente: 'Petersen', html: '<div></div>', alarmaPrincipal: '   ' },
+        { cliente: 'Petersen', html: '<div></div>', alarmaPrincipal: null },
+        { cliente: 'Petersen', html: '<div></div>', alarmaPrincipal: 42 }
+      ];
+
+      for (let i = 0; i < casos.length; i++) {
+        const alarma = alarmaPrincipal(casos[i]);
+        if (alarma !== 'Incidentes Varios') {
+          return `el caso #${i + 1} debería caer al texto genérico, llegó "${alarma}"`;
+        }
+      }
+      return null;
+    }
+  },
+  {
+    nombre: '"alarmaPrincipal" le gana al alias viejo cuando están los dos',
+    correr: () => {
+      const alarma = alarmaPrincipal({
+        cliente: 'Petersen',
+        html: '<div></div>',
+        alarmaPrincipal: 'Nombre nuevo',
+        alarmaPricipal: 'Nombre viejo'
+      });
+      if (alarma !== 'Nombre nuevo') return `se esperaba "Nombre nuevo", llegó "${alarma}"`;
       return null;
     }
   }

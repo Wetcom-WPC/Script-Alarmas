@@ -28,10 +28,18 @@ const MessageFormatter = {
         if (Config.URL_WEB_APP && Config.URL_WEB_APP.startsWith("http")) {
           try {
             const htmlBorrador = this._generarDetalleAlarmasHTML(alarmasCliente);
+            const alarmaPrincipal = Object.keys(alarmasCliente)[0] || "Incidentes Varios";
             const payloadBorrador = {
               cliente: cliente,
               pod: pod,
-              alarmaPrincipal: Object.keys(alarmasCliente)[0] || "Incidentes Varios",
+              alarmaPrincipal: alarmaPrincipal,
+              // Alias con el typo que el campo tuvo hasta v10.10.0. Se sigue escribiendo
+              // porque el que lee este JSON es el deployment publicado del WebApp, que
+              // puede ser anterior a esa corrección: si ese lector sólo conoce
+              // 'alarmaPricipal', sin el alias arma el asunto con "undefined". Se puede
+              // borrar cuando Config.URL_WEB_APP apunte con certeza a un deployment
+              // posterior a v10.10.0.
+              alarmaPricipal: alarmaPrincipal,
               html: htmlBorrador
             };
             
