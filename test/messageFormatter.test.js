@@ -302,6 +302,81 @@ const CASOS = [
       if (html.indexOf('>VCENTER<') !== -1) return 'no debería mostrar la fila de vCenter "Desconocido"';
       return null;
     }
+  },
+  {
+    nombre: 'HTML: un detalle de una sola línea va sin viñeta (la celda ya está rotulada DETALLE)',
+    correr: () => {
+      const { MessageFormatter } = conFormatter();
+      const alarmasPorCliente = {
+        'Falabella': {
+          'Alarma por estado de licencia': {
+            [JSON.stringify({ vCenter: 'f099srtec350.falabella.com', cluster: 'Desconocido', target: 'Datacenters', etiquetaTarget: 'Recurso Afectado' })]:
+              [entrada(fecha('2026-09-09T14:58:00Z'), "Certificate 'O=f099srtec350.falabella.com' from 'MACHINE_SSL_CERT' expires on 2026-10-02")]
+          }
+        }
+      };
+      const html = MessageFormatter.generarCorreoGuardiaHTML('POD 3', alarmasPorCliente);
+      if (html.indexOf('>DETALLE<') === -1) return 'falta la fila DETALLE';
+      if (html.indexOf('MACHINE_SSL_CERT') === -1) return 'falta el texto del detalle';
+      if (html.indexOf('<li>') !== -1) return 'un detalle de una sola línea no debería salir como lista con viñeta';
+      return null;
+    }
+  },
+  {
+    nombre: 'HTML: un detalle de varias líneas sí sale como lista (cada línea es un campo distinto)',
+    correr: () => {
+      const { MessageFormatter } = conFormatter();
+      const alarmasPorCliente = {
+        'Cliente A': {
+          'Alarma X': {
+            [JSON.stringify({ vCenter: 'Desconocido', cluster: 'Desconocido', target: 'esx01', etiquetaTarget: 'Host' })]:
+              [entrada(fecha('2026-08-01T10:00:00Z'), 'Descripcion del problema\nHealth Status: Rojo')]
+          }
+        }
+      };
+      const html = MessageFormatter.generarCorreoGuardiaHTML('POD 5', alarmasPorCliente);
+      const viñetas = (html.match(/<li>/g) || []).length;
+      if (viñetas !== 2) return `se esperaban 2 viñetas (una por campo), hubo ${viñetas}`;
+      if (html.indexOf('Descripcion del problema') === -1) return 'falta la primera línea del detalle';
+      if (html.indexOf('Health Status: Rojo') === -1) return 'falta la segunda línea del detalle';
+      return null;
+    }
+  },
+  {
+    nombre: 'HTML: sin detalle se muestra el texto por defecto, también sin viñeta',
+    correr: () => {
+      const { MessageFormatter } = conFormatter();
+      const alarmasPorCliente = {
+        'Cliente A': {
+          'Alarma X': {
+            [JSON.stringify({ vCenter: 'Desconocido', cluster: 'Desconocido', target: 'esx01', etiquetaTarget: 'Host' })]:
+              [entrada(fecha('2026-08-01T10:00:00Z'))]
+          }
+        }
+      };
+      const html = MessageFormatter.generarCorreoGuardiaHTML('POD 5', alarmasPorCliente);
+      if (html.indexOf('Sin detalles adicionales') === -1) return 'falta el texto por defecto del detalle';
+      if (html.indexOf('<li>') !== -1) return 'el texto por defecto no debería salir con viñeta';
+      return null;
+    }
+  },
+  {
+    nombre: 'HTML: el detalle se escapa (sin inyección HTML)',
+    correr: () => {
+      const { MessageFormatter } = conFormatter();
+      const alarmasPorCliente = {
+        'Cliente A': {
+          'Alarma X': {
+            [JSON.stringify({ vCenter: 'Desconocido', cluster: 'Desconocido', target: 'esx01', etiquetaTarget: 'Host' })]:
+              [entrada(fecha('2026-08-01T10:00:00Z'), '<img src=x onerror=alert(1)>')]
+          }
+        }
+      };
+      const html = MessageFormatter.generarCorreoGuardiaHTML('POD 5', alarmasPorCliente);
+      if (html.indexOf('<img src=x') !== -1) return 'el detalle no se escapó (riesgo de inyección HTML)';
+      if (html.indexOf('&lt;img src=x') === -1) return 'no se encontró la versión escapada del detalle';
+      return null;
+    }
   }
 ];
 
