@@ -167,7 +167,7 @@
     "alarmasSilenciadas": [],
     "entradas": [
       {
-        "alarma": "Alarma desconocida [.EstoNoExisteEnLaPlanilla]",
+        "alarma": "Alarma desconocida [EstoNoExisteEnLaPlanilla]",
         "cliente": "Banco Macro",
         "origen": {
           "cluster": "CL-PROD-01",

@@ -8,8 +8,16 @@ const AlarmParser = {
   extraerNombreYResumenAlarma: function(summary, mapaAlarmas, warnings) {
     let cleanSummary = summary ? summary.toString().trim() : '';
 
-    // FIX ROBUSTO: Normaliza los prefijos extraños sin importar si están al inicio exacto o tienen espacios invisibles previos.
-    cleanSummary = cleanSummary.replace(/\[\[?alarm\]?\s*([^\]]+)\]/i, '[alarm.$1]');
+    // Normaliza las variantes del identificador de alarma ("[Alarm foo]", "[[alarm] foo]")
+    // a la forma canónica "[alarm.foo]", sin importar si están al inicio exacto o tienen
+    // espacios invisibles previos.
+    //
+    // El (?!\.) es imprescindible: sin él la regex también matchea lo que YA está en la
+    // forma canónica ("[alarm.CertificateStatusAlarm]") y le antepone un segundo punto,
+    // dejando "[alarm..CertificateStatusAlarm]". Ese punto de más se filtra después al
+    // nombre de la alarma y al detalle que se publica: en SOPFALABEL-26796 el detalle
+    // salía como ".CertificateStatusAlarm] Certificate 'O=...'".
+    cleanSummary = cleanSummary.replace(/\[\[?alarm\]?\s*(?!\.)([^\]]+)\]/i, '[alarm.$1]');
 
     const interceptors = [
       {
@@ -69,7 +77,13 @@ const AlarmParser = {
     if (!matchFound) {
       const patronesEspecificos = [
         /.*?Alarm\s+'?(.*?)'?\s+on/i, 
-        /^(?:[^\s]+\s+-\s+)(.*?)(?:\s+on\s+[^.]*)?(?:\.|$)/i,
+        // El (?!\[?alarm\.) evita que este patrón, que es el genérico
+        // "<target> - <texto de la alarma>", se coma un identificador canónico que ya
+        // tiene su propio patrón más abajo. Sin él, en "Datacenters - [alarm.X] ..."
+        // cortaba en el punto de "[alarm." y devolvía "[alarm" como nombre de alarma, con
+        // lo que TODAS las alarmas de esa forma colapsaban a un mismo nombre: ver
+        // SOPFALABEL-26796, que se publicó como alarma de licencia siendo de certificado.
+        /^(?:[^\s]+\s+-\s+)(?!\[?alarm\.)(.*?)(?:\s+on\s+[^.]*)?(?:\.|$)/i,
         /\[alarm\.StorageConnectivityAlarm\] .*?(Lost connection|Path redundancy)(?: to|)/i, 
         /\[VMware vCenter - Alarm alarm\.(\S+)\]/i,
         /\[(.+?)\] Alarm '(.*?)' on/i,
@@ -82,8 +96,16 @@ const AlarmParser = {
         const match = cleanSummary.match(regex);
         if (match) {
           alarmaNombre = match[2] || match[1] || alarmaNombre;
-          summaryResto = cleanSummary.replace(match[0], '').trim(); 
-          summaryResto = summaryResto.replace(/^-\s*/, ''); 
+          // El detalle es lo que queda del summary al quitarle el pedazo que identificó a
+          // la alarma. Si ese pedazo venía en el medio ("Datacenters - [alarm.X] ..."), lo
+          // que queda delante es el target, que ya se publica en su propia fila: se
+          // descarta para que el detalle no lo repita.
+          const antes = cleanSummary.slice(0, match.index);
+          const despues = cleanSummary.slice(match.index + match[0].length);
+          const prefijo = /\s+-\s+$/.test(antes) ? '' : antes;
+
+          summaryResto = `${prefijo} ${despues}`.replace(/\s{2,}/g, ' ').trim();
+          summaryResto = summaryResto.replace(/^-\s*/, '');
           matchFound = true;
           break;
         }
