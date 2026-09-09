@@ -20,7 +20,7 @@ const MessageFormatter = {
       let enlacesBorradores = [];
 
       for (const cliente in mensajesProcesados[pod]) {
-        mensaje += `*${cliente}*\n\n`;
+        mensaje += `*${cliente}*${this._enlacesTickets(mensajesProcesados[pod][cliente])}\n\n`;
         const alarmasCliente = mensajesProcesados[pod][cliente];
         mensaje += this._generarDetalleAlarmas(alarmasCliente);
         
@@ -113,6 +113,34 @@ const MessageFormatter = {
       </div>`;
     
     return cuerpoFinal;
+  },
+
+  /**
+   * Enlaces a los tickets de Jira de las alarmas de un cliente, listos para acolarse al
+   * nombre del cliente ("*Falabella* | SOPFALABEL-26796 | SOPFALABEL-26801").
+   *
+   * Se recorren todas las alarmas del cliente y todos sus grupos de origen, porque un mismo
+   * bloque puede venir de más de un ticket: la misma alarma sobre tres hosts llega como tres
+   * tickets distintos y se agrupa en una sola línea. Se deduplica conservando el orden de
+   * aparición, que es el mismo en el que se listan las alarmas más abajo.
+   *
+   * Las entradas sin `ticketKey` se saltean en vez de romper: el campo lo agrega
+   * AlarmProcessor, y un test que arme la estructura a mano puede no traerlo.
+   */
+  _enlacesTickets: function(alarmasCliente) {
+    const keys = [];
+
+    for (const alarma in alarmasCliente) {
+      const entradasTarget = alarmasCliente[alarma];
+      for (const targetStr in entradasTarget) {
+        entradasTarget[targetStr].forEach(entrada => {
+          const key = entrada && entrada.ticketKey;
+          if (key && keys.indexOf(key) === -1) keys.push(key);
+        });
+      }
+    }
+
+    return keys.map(key => ` | <https://${Config.JIRA_BASE_URL}/browse/${key}|${key}>`).join('');
   },
 
   _formatearErrores: function(errores) {

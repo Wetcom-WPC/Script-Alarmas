@@ -102,7 +102,7 @@ const AlarmProcessor = {
     });
 
     conservadas.forEach(c => {
-      this._agruparMensaje(c.pod, c.cliente, c.alarma, this._claveOrigen(c.origen), c.created, mensajesProcesados, c.warnings, c.summaryResto);
+      this._agruparMensaje(c, this._claveOrigen(c.origen), mensajesProcesados);
     });
 
     return { mensajesProcesados, errores, alarmasSilenciadas, duplicadasDescartadas: descartadas };
@@ -254,16 +254,26 @@ const AlarmProcessor = {
     return resultado;
   },
 
-  _agruparMensaje: function(pod, cliente, alarma, target, created, mensajesProcesados, warnings, summaryResto) {
+  /**
+   * Vuelca una candidata en `mensajesProcesados[pod][cliente][alarma][target]`.
+   *
+   * Recibe la candidata entera en vez de sus campos sueltos: ya venía con ocho parámetros
+   * posicionales y la key del ticket habría sido el noveno.
+   */
+  _agruparMensaje: function(candidata, target, mensajesProcesados) {
+    const { pod, cliente, alarma, created, warnings, summaryResto, ticketKey } = candidata;
+
     if (!mensajesProcesados[pod]) mensajesProcesados[pod] = {};
     if (!mensajesProcesados[pod][cliente]) mensajesProcesados[pod][cliente] = {};
     if (!mensajesProcesados[pod][cliente][alarma]) mensajesProcesados[pod][cliente][alarma] = {};
     if (!mensajesProcesados[pod][cliente][alarma][target]) mensajesProcesados[pod][cliente][alarma][target] = [];
-    
+
     mensajesProcesados[pod][cliente][alarma][target].push({
       created,
       warnings: warnings.length > 0 ? warnings.join(', ') : null,
-      summaryResto
+      summaryResto,
+      // La usa MessageFormatter para enlazar los tickets junto al nombre del cliente.
+      ticketKey
     });
   },
 

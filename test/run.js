@@ -158,8 +158,13 @@ function main() {
   const alarmParser = require('./alarmParser.test').correr();
   console.log(`${alarmParser.total - alarmParser.fallos}/${alarmParser.total} casos ok`);
 
+  console.log('\n── Tickets junto al nombre del cliente ──');
+  const tickets = require('./ticketsCliente.test').correr();
+  console.log(`${tickets.total - tickets.fallos}/${tickets.total} casos ok`);
+
   const totalFallos = fallos + exc.fallos + dedup.fallos + entorno.fallos + cierre.fallos + fechas.fallos + tools.fallos + http.fallos
-    + formatter.fallos + repo.fallos + webapp.fallos + limpieza.fallos + errProc.fallos + alarmParser.fallos;
+    + formatter.fallos + repo.fallos + webapp.fallos + limpieza.fallos + errProc.fallos + alarmParser.fallos
+    + tickets.fallos;
   if (totalFallos > 0) {
     console.error(`\n${totalFallos} caso(s) con diferencias.`);
     process.exit(1);
