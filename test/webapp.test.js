@@ -3,7 +3,7 @@
  * AUDITORIA.md: `doPost` lee un archivo de Drive por ID sin garantía de que sea un borrador
  * generado por esta app, así que antes de usarlo se chequea que tenga la forma esperada.
  *
- * `doGet`/`doPost`/`_generarBorrador` en sí NO se testean acá: dependen de GmailApp,
+ * De `doGet` se testea el HTML que arma (stubeando HtmlService y ScriptApp). `doPost` y
  * DriveApp, CacheService y HtmlService reales, y mockear las cuatro para un test de
  * integración de bajo valor no vale la complejidad. Queda anotado como pendiente en
  * AUDITORIA.md (punto 16).
@@ -15,6 +15,24 @@ function validar(payload) {
   const fn = obtener('_esPayloadBorradorValido');
   if (!fn) throw new Error('No se pudo cargar _esPayloadBorradorValido en el sandbox.');
   return fn(payload);
+}
+
+/**
+ * Renderiza `doGet` con HtmlService y ScriptApp stubeados.
+ *
+ * Es el unico pedazo de doGet/doPost que se puede testear barato: arma HTML y no toca
+ * Gmail ni Drive. La creacion del borrador (doPost -> _generarBorrador) sigue afuera.
+ */
+function renderDoGet(borradorId) {
+  const { contexto, obtener } = crearSandbox();
+  contexto.HtmlService = { createHtmlOutput: (html) => ({ getContent: () => html }) };
+  contexto.ScriptApp = {
+    getService: () => ({ getUrl: () => 'https://script.google.com/a/macros/wetcom.com/s/DEPLOY/exec' })
+  };
+
+  const doGet = obtener('doGet');
+  if (!doGet) throw new Error('No se pudo cargar doGet en el sandbox.');
+  return doGet({ parameter: { id: borradorId } }).getContent();
 }
 
 function alarmaPrincipal(payload) {
@@ -130,6 +148,41 @@ const CASOS = [
         alarmaPricipal: 'Nombre viejo'
       });
       if (alarma !== 'Nombre nuevo') return `se esperaba "Nombre nuevo", llegó "${alarma}"`;
+      return null;
+    }
+  },
+  {
+    nombre: 'doGet: el form que se autoenvia apunta a _top (si no, la respuesta no se puede mostrar)',
+    correr: () => {
+      // Apps Script sirve este HTML dentro de un iframe anidado embebido en la pagina
+      // /exec. Sin target, el form navega ESE iframe hacia /exec, que se niega a ser
+      // embebida: el borrador se crea igual, pero el usuario ve "refused to connect".
+      const html = renderDoGet('1Ru2A8ACFkvE8hiHSQnMuisFTcWh30Io_');
+      if (html.indexOf('<form') === -1) return 'doGet deberia devolver el form que reenvia el id';
+      if (html.indexOf('target="_top"') === -1) {
+        return 'el form no apunta a _top: la confirmacion va a fallar con "refused to connect"';
+      }
+      return null;
+    }
+  },
+  {
+    nombre: 'doGet: reenvia el id como POST y no genera nada por si mismo',
+    correr: () => {
+      // Un GET tiene que ser seguro de repetir: un prefetch del navegador o una recarga no
+      // deberian generar un borrador de mas. La creacion vive en doPost.
+      const html = renderDoGet('ABC123');
+      if (html.indexOf('method="post"') === -1) return 'el form deberia reenviarse como POST';
+      if (html.indexOf('name="id"') === -1) return 'el form deberia llevar el id';
+      if (html.indexOf('ABC123') === -1) return 'el form deberia llevar el id recibido';
+      return null;
+    }
+  },
+  {
+    nombre: 'doGet: sin id devuelve el aviso de enlace invalido, sin form',
+    correr: () => {
+      const html = renderDoGet(undefined);
+      if (html.indexOf('Enlace Inv') === -1) return 'deberia avisar que el enlace es invalido';
+      if (html.indexOf('<form') !== -1) return 'no deberia intentar reenviar nada sin id';
       return null;
     }
   }
