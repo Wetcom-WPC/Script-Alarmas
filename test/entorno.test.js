@@ -135,6 +135,51 @@ const CASOS = [
         return null;
       }
     }
+  },
+  {
+    nombre: 'URL_WEB_APP: en produccion se publica el WebApp de produccion',
+    correr: () => {
+      const { Config } = configCon({ ENTORNO: 'PRODUCCION' });
+      if (Config.URL_WEB_APP !== Config.URL_WEB_APP_PROD) {
+        return 'en produccion se estaria publicando el WebApp del otro entorno';
+      }
+      return null;
+    }
+  },
+  {
+    nombre: 'URL_WEB_APP: en testing se publica el WebApp de testing',
+    correr: () => {
+      const { Config } = configCon({ ENTORNO: 'TESTING' });
+      if (Config.URL_WEB_APP !== Config.URL_WEB_APP_TESTING) {
+        return 'en testing se estaria publicando el WebApp del otro entorno';
+      }
+      return null;
+    }
+  },
+  {
+    nombre: 'URL_WEB_APP: los dos entornos apuntan a deployments distintos',
+    correr: () => {
+      // El bug que motivo esto: una sola constante hardcodeada hacia que produccion
+      // publicara el WebApp de testing, y los destinatarios del correo salieran de la
+      // planilla de testing.
+      const { Config } = configCon({ ENTORNO: 'PRODUCCION' });
+      if (Config.URL_WEB_APP_PROD === Config.URL_WEB_APP_TESTING) {
+        return 'ambos entornos apuntan al mismo deployment';
+      }
+      if (Config.URL_WEB_APP_PROD.indexOf('https://') !== 0) return 'la URL de produccion no parece una URL';
+      if (Config.URL_WEB_APP_TESTING.indexOf('https://') !== 0) return 'la URL de testing no parece una URL';
+      return null;
+    }
+  },
+  {
+    nombre: 'URL_WEB_APP: ante property ausente cae al WebApp de testing, no al productivo',
+    correr: () => {
+      const { Config } = configCon({ ENTORNO: null });
+      if (Config.URL_WEB_APP !== Config.URL_WEB_APP_TESTING) {
+        return 'con la property rota se publicaria el WebApp productivo';
+      }
+      return null;
+    }
   }
 ];
 
