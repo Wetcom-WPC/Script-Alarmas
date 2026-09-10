@@ -4,6 +4,21 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y el proyecto se adhiere a [Semantic Versioning](https://semver.org/).
 
+## [10.11.0] - 2026-09-10
+
+Validado primero en `alarmas-testing` y promovido a producción después de la verificación del NOC.
+
+### Added
+- **Enlaces a los tickets de Jira junto al nombre del cliente (`core/AlarmProcessor.js`, `utils/MessageFormatter.js`):** la línea del cliente en el mensaje de Slack pasa de `*Falabella*` a `*Falabella* | SOPFALABEL-26796 | SOPFALABEL-26801`, con cada key enlazada a su ticket. El POD puede saltar al ticket sin tener que buscarlo a mano.
+  - La `ticketKey` ya viajaba en las candidatas de `AlarmProcessor` —se usaba para el log de duplicadas por cobertura y para el cierre automático en Jira— pero se perdía al agrupar. Ahora queda guardada en la entrada, junto a `created`, `warnings` y `summaryResto`.
+  - `_agruparMensaje` pasa a recibir la candidata entera en vez de sus campos sueltos: ya tenía ocho parámetros posicionales y la key habría sido el noveno.
+  - Nueva `MessageFormatter._enlacesTickets()`. Recorre todas las alarmas del cliente y todos sus grupos de origen, porque un mismo bloque puede venir de más de un ticket: la misma alarma sobre tres hosts llega como tres tickets de Jira distintos y se publica como una sola línea. Deduplica conservando el orden de aparición —el mismo en el que se listan las alarmas debajo— y arma los enlaces con `Config.JIRA_BASE_URL`.
+- **Tests:** `test/ticketsCliente.test.js` (6 casos), que cubre las dos capas por separado (el guardado de la key en `AlarmProcessor` y el armado de los enlaces en `MessageFormatter`) más el punta a punta sobre el mensaje completo. El golden no se mueve: su vista aplanada no emite `ticketKey`. Suite total: 163/163.
+
+### Nota de alcance
+- **Sólo cambia el mensaje de Slack.** El correo al cliente sigue igual: las keys de Jira son referencias internas y no corresponde mandárselas.
+- **No hay tope de tickets por cliente.** Un cliente con muchas alarmas va a tener una línea larga. Se dejó así a propósito en vez de inventar un corte; si en la práctica molesta, el lugar para acotarlo es `_enlacesTickets`.
+
 ## [10.10.2] - 2026-09-09
 
 Tres fixes de producción encadenados por el mismo reporte: el borrador de correo que genera
