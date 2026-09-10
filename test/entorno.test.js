@@ -137,48 +137,52 @@ const CASOS = [
     }
   },
   {
-    nombre: 'URL_WEB_APP: en produccion se publica el WebApp de produccion',
+    nombre: 'URL_WEB_APP: en produccion se lee la property del WebApp productivo',
     correr: () => {
       const { Config } = configCon({ ENTORNO: 'PRODUCCION' });
-      if (Config.URL_WEB_APP !== Config.URL_WEB_APP_PROD) {
-        return 'en produccion se estaria publicando el WebApp del otro entorno';
+      // El sandbox devuelve "valor-falso-<clave>" para las claves no declaradas, asi que
+      // el valor delata QUE property se leyo.
+      if (Config.URL_WEB_APP !== 'valor-falso-URL_WEB_APP_PROD') {
+        return `esperaba que leyera URL_WEB_APP_PROD, obtuvo: ${Config.URL_WEB_APP}`;
       }
       return null;
     }
   },
   {
-    nombre: 'URL_WEB_APP: en testing se publica el WebApp de testing',
+    nombre: 'URL_WEB_APP: en testing se lee la property del WebApp de testing',
     correr: () => {
       const { Config } = configCon({ ENTORNO: 'TESTING' });
-      if (Config.URL_WEB_APP !== Config.URL_WEB_APP_TESTING) {
-        return 'en testing se estaria publicando el WebApp del otro entorno';
+      if (Config.URL_WEB_APP !== 'valor-falso-URL_WEB_APP_TESTING') {
+        return `esperaba que leyera URL_WEB_APP_TESTING, obtuvo: ${Config.URL_WEB_APP}`;
       }
       return null;
     }
   },
   {
-    nombre: 'URL_WEB_APP: los dos entornos apuntan a deployments distintos',
+    nombre: 'URL_WEB_APP: ante ENTORNO roto se lee la de testing, nunca la productiva',
     correr: () => {
-      // El bug que motivo esto: una sola constante hardcodeada hacia que produccion
-      // publicara el WebApp de testing, y los destinatarios del correo salieran de la
-      // planilla de testing.
-      const { Config } = configCon({ ENTORNO: 'PRODUCCION' });
-      if (Config.URL_WEB_APP_PROD === Config.URL_WEB_APP_TESTING) {
-        return 'ambos entornos apuntan al mismo deployment';
-      }
-      if (Config.URL_WEB_APP_PROD.indexOf('https://') !== 0) return 'la URL de produccion no parece una URL';
-      if (Config.URL_WEB_APP_TESTING.indexOf('https://') !== 0) return 'la URL de testing no parece una URL';
-      return null;
-    }
-  },
-  {
-    nombre: 'URL_WEB_APP: ante property ausente cae al WebApp de testing, no al productivo',
-    correr: () => {
+      // Mismo criterio que el resto del interruptor: ante configuracion rota, el lado que
+      // no toca a los clientes.
       const { Config } = configCon({ ENTORNO: null });
-      if (Config.URL_WEB_APP !== Config.URL_WEB_APP_TESTING) {
-        return 'con la property rota se publicaria el WebApp productivo';
+      if (Config.URL_WEB_APP !== 'valor-falso-URL_WEB_APP_TESTING') {
+        return `con ENTORNO ausente deberia caer en testing, obtuvo: ${Config.URL_WEB_APP}`;
       }
       return null;
+    }
+  },
+  {
+    nombre: 'URL_WEB_APP: si la property no esta cargada, falla fuerte y nombra la clave',
+    correr: () => {
+      // Quien absorbe esto es MessageFormatter._urlWebApp, que publica el mensaje sin
+      // enlaces en vez de perderlo. Aca solo se verifica que el error diga cual falta.
+      const { Config } = configCon({ ENTORNO: 'PRODUCCION', URL_WEB_APP_PROD: null });
+      try {
+        const url = Config.URL_WEB_APP;
+        return `deberia haber lanzado, devolvio: ${url}`;
+      } catch (e) {
+        if (e.message.indexOf('URL_WEB_APP_PROD') === -1) return `el error deberia nombrar la clave: ${e.message}`;
+        return null;
+      }
     }
   }
 ];

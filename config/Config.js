@@ -138,27 +138,27 @@ const Config = {
       : this.getPropiedad("CARPETA_BORRADORES_TESTING");
   },
 
-  // WebApp que genera los borradores de correo (el enlace "Generar correo para ..." que
-  // se publica en Slack). Cada entorno tiene el suyo, igual que los webhooks y la carpeta
-  // de borradores.
+  // WebApp que genera los borradores de correo (el enlace "Generar correo para ..." que se
+  // publica en Slack). Cada entorno tiene el suyo, igual que los webhooks de Slack y la
+  // carpeta de borradores.
   //
-  // Que estuviera hardcodeado uno solo no era cosmético: el WebApp corre DENTRO del
-  // proyecto dueño del deployment, así que resuelve DataRepository contra la planilla a la
-  // que ESE proyecto está atado. Con un único valor apuntando a alarmas-testing, los
-  // enlaces publicados por producción abrían el WebApp de testing y los destinatarios del
-  // correo salían de la planilla de testing.
+  // No es un detalle cosmético: el WebApp corre DENTRO del proyecto dueño del deployment,
+  // así que resuelve DataRepository contra la planilla a la que ESE proyecto está atado.
+  // Mientras hubo un único valor apuntando a alarmas-testing, los enlaces publicados por
+  // producción abrían el WebApp de testing y los destinatarios del correo salían de la
+  // planilla de testing.
   //
-  // Van en el código y no en Script Properties porque no son secretos —el acceso al WebApp
-  // ya está restringido al dominio— y así el valor queda versionado junto al resto.
+  // Va en Script Properties y no en el código por el mismo motivo que el resto del
+  // interruptor de entorno: es un identificador de infraestructura de cada proyecto, no
+  // código. Republicar el WebApp no debería obligar a commitear.
   //
   // Si hay que republicar, conviene reusar el id existente con
   // `clasp create-deployment -i <deploymentId>`: saca una versión nueva sin cambiar la URL,
-  // así los enlaces que ya están en Slack siguen funcionando y no hay que tocar esto.
-  URL_WEB_APP_PROD: "https://script.google.com/a/macros/wetcom.com/s/AKfycbxxOmPkSYJmYX_UUQn-ZqGkwMZrfNKJHBAfPf4nYwOD0BVhyJhLMg8ei4IRksVePglN/exec",
-  URL_WEB_APP_TESTING: "https://script.google.com/a/macros/wetcom.com/s/AKfycbw-ZHuJoFYN4hhOB-GJPwegSIjsbh5VURmTyFTc5_zOKG1WUIQE-IdxIyuMXRZNYYY/exec",
-
+  // así los enlaces que ya están en Slack siguen funcionando y no hay que tocar la property.
   get URL_WEB_APP() {
-    return this.esProduccion() ? this.URL_WEB_APP_PROD : this.URL_WEB_APP_TESTING;
+    return this.esProduccion()
+      ? this.getPropiedad("URL_WEB_APP_PROD")
+      : this.getPropiedad("URL_WEB_APP_TESTING");
   },
 
   /**
