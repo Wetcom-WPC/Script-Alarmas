@@ -4,6 +4,26 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y el proyecto se adhiere a [Semantic Versioning](https://semver.org/).
 
+## [10.11.2] - 2026-09-10
+
+Corrige una decisión de v10.11.1 y, de paso, un modo de falla que esa decisión estaba tapando.
+
+### Changed
+- **`URL_WEB_APP` vuelve a Script Properties (`config/Config.js`):** v10.11.1 dejó las dos URLs como constantes versionadas en el código, justificándolo con que "no son secretos". El criterio estaba mal planteado. `CARPETA_BORRADORES_PROD` / `_TESTING` tampoco es un secreto y vive en Script Properties: la regla del proyecto no es *"secretos afuera"* sino *"identificador de infraestructura por entorno, afuera"*, y una URL de deployment es exactamente eso. Además, el getter de `ENTORNO` documenta que el interruptor existe justamente para no tener que tocar constantes versionadas al cambiar de entorno — que es lo que v10.11.1 reintrodujo.
+  - Pasa a `getPropiedad("URL_WEB_APP_PROD")` / `getPropiedad("URL_WEB_APP_TESTING")`, con la misma forma que `ID_CARPETA_BORRADORES`.
+  - **Requiere las dos Script Properties cargadas en cada proyecto.** Sin ellas el mensaje se publica igual, pero sin los enlaces de borrador.
+
+### Fixed
+- **Una property ausente dejaba al POD sin mensaje, no sin enlaces (`utils/MessageFormatter.js`):** `Config.URL_WEB_APP` se leía en la condición del `if`, **fuera** del `try` que envuelve la generación del borrador. Mientras el valor era una constante eso nunca fallaba; al moverlo a Script Properties pasó a importar, porque `getPropiedad` lanza si la clave falta. Una property sin cargar se llevaba puesta a `generarMensaje` entera y ninguna alarma llegaba a Slack.
+  - Nueva `MessageFormatter._urlWebApp()`, que absorbe cualquier falla al resolver la URL y devuelve `null`. El mensaje se publica sin enlaces y queda el aviso en el log. El enlace al borrador es una comodidad; el resumen de alarmas es el producto.
+
+### Added
+- **Tests:** 4 casos reescritos en `test/entorno.test.js` (verifican **qué** property se lee en cada entorno, que un `ENTORNO` roto cae en la de testing y que el error nombra la clave faltante) y 2 en `test/messageFormatter.test.js`, uno de ellos la regresión de la property ausente. Suite total: 168/168.
+
+### Nota operativa
+- Script Properties a cargar en **cada** proyecto: `URL_WEB_APP_PROD` y `URL_WEB_APP_TESTING`. Cada entorno lee sólo la suya, pero tener ambas permite flipear `ENTORNO` para reproducir un problema del otro lado sin tocar nada más — igual que con los webhooks de Slack.
+- Si en algún momento los enlaces "Generar correo para ..." desaparecen del mensaje de Slack, la causa más probable es una de estas properties sin cargar o mal tipeada. El Logger lo dice explícitamente ("No se pudo resolver URL_WEB_APP").
+
 ## [10.11.1] - 2026-09-10
 
 Cierra el desfasaje del WebApp de borradores que venía arrastrándose desde el hotfix del
@@ -16,6 +36,7 @@ asunto `undefined` (v10.10.2). La causa raíz resultó ser de despliegue, no de 
   - La versión 8 tampoco tenía nada del endurecimiento de v10.8.0 en adelante: sin `_esPayloadBorradorValido`, sin `doPost` (creaba el borrador dentro del `GET`), sin `_escapeHTML` sobre cliente y errores, y con `"wpc@wetcom.com"` hardcodeado en lugar de `Config.EMAIL_FALLBACK`. Todo eso figuraba como resuelto en este changelog y no estaba corriendo en ningún lado.
   - `URL_WEB_APP` pasa a ser un getter sobre `esProduccion()`, con una constante por entorno, siguiendo el mismo patrón que `obtenerWebhookSlack()` e `ID_CARPETA_BORRADORES`. Ante una property `ENTORNO` ausente o ilegible cae al WebApp de **testing**, nunca al productivo — el mismo criterio de fail-safe que el resto del interruptor.
   - Las URLs van en el código y no en Script Properties: no son secretos (el acceso al WebApp ya está restringido al dominio) y así quedan versionadas junto al resto.
+  - > **Revertido en v10.11.2.** El criterio estaba mal planteado: la regla del proyecto no es "secretos afuera" sino "identificador de infraestructura por entorno, afuera". Las URLs viven ahora en Script Properties.
 
 ### Added
 - **Tests:** 4 casos nuevos en `test/entorno.test.js` (total 15): cada entorno resuelve su propio WebApp, los dos deployments son distintos, y una property rota cae al de testing. Suite total: 167/167.
