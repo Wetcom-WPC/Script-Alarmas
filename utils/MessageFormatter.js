@@ -25,7 +25,8 @@ const MessageFormatter = {
         mensaje += this._generarDetalleAlarmas(alarmasCliente);
         
         // --- INYECCIÓN DEL ENLACE DE BORRADOR ---
-        if (Config.URL_WEB_APP && Config.URL_WEB_APP.startsWith("http")) {
+        const urlWebApp = this._urlWebApp();
+        if (urlWebApp) {
           try {
             const htmlBorrador = this._generarDetalleAlarmasHTML(alarmasCliente);
             const alarmaPrincipal = Object.keys(alarmasCliente)[0] || "Incidentes Varios";
@@ -73,7 +74,7 @@ const MessageFormatter = {
               cache.put(`hash_${hashBorrador}`, borradorId, 21600); 
             }
             
-            enlacesBorradores.push(`📩 <${Config.URL_WEB_APP}?id=${borradorId}|Generar correo para ${cliente}>`);
+            enlacesBorradores.push(`📩 <${urlWebApp}?id=${borradorId}|Generar correo para ${cliente}>`);
           } catch(e) {
             Logger.log("Error al generar borrador (Cache/Drive): " + e.message);
           }
@@ -113,6 +114,27 @@ const MessageFormatter = {
       </div>`;
     
     return cuerpoFinal;
+  },
+
+  /**
+   * URL del WebApp de borradores, o null si no está configurada o no se pudo leer.
+   *
+   * `Config.URL_WEB_APP` sale de una Script Property y `getPropiedad` lanza si la clave
+   * falta. Antes esa lectura vivía en la condición del `if`, fuera del try: una property
+   * sin cargar no dejaba al mensaje sin enlaces, dejaba al POD sin mensaje, porque la
+   * excepción se llevaba puesta a `generarMensaje` entera.
+   *
+   * El enlace al borrador es una comodidad; el resumen de alarmas es el producto. Ante
+   * configuración incompleta se publica igual, sin enlaces, y queda el aviso en el log.
+   */
+  _urlWebApp: function() {
+    try {
+      const url = Config.URL_WEB_APP;
+      return (url && url.toString().startsWith('http')) ? url.toString() : null;
+    } catch (e) {
+      Logger.log(`No se pudo resolver URL_WEB_APP; el mensaje se publica sin enlaces de borrador: ${e.message}`);
+      return null;
+    }
   },
 
   /**

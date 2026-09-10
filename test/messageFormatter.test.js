@@ -12,8 +12,9 @@ const { crearSandbox } = require('./harness');
 function conFormatter() {
   const { obtener, logs } = crearSandbox();
   const MessageFormatter = obtener('MessageFormatter');
+  const Config = obtener('Config');
   if (!MessageFormatter) throw new Error('No se pudo cargar MessageFormatter en el sandbox.');
-  return { MessageFormatter, logs };
+  return { MessageFormatter, Config, logs };
 }
 
 const fecha = (iso) => new Date(iso);
@@ -62,14 +63,46 @@ const CASOS = [
     }
   },
   {
-    nombre: 'generarMensaje no revienta si no hay CacheService/DriveApp (Config.URL_WEB_APP configurado)',
+    nombre: 'generarMensaje no revienta si no hay CacheService/DriveApp (URL_WEB_APP resuelta)',
     correr: () => {
-      const { MessageFormatter, logs } = conFormatter();
+      const { MessageFormatter, Config, logs } = conFormatter();
+      // La URL sale de una Script Property, y en este sandbox PropertiesService está
+      // prohibido. Se fuerza un valor para poder ejercitar el camino de adentro del try.
+      Config.getPropiedad = () => 'https://webapp.test/exec';
+
       let m = {};
       agregar(m, 'WPC', 'Cliente A', 'Alarma X', { vCenter: 'Desconocido', cluster: 'Desconocido', target: 'Desconocido' }, [entrada(fecha('2026-08-01T10:00:00Z'))]);
       const msg = MessageFormatter.generarMensaje(m, []);
       if (msg.indexOf('📩') !== -1) return 'no debería haber generado un enlace de borrador sin Cache/Drive';
       if (!logs.some(l => l.indexOf('Error al generar borrador') !== -1)) return 'debería quedar logueado el intento fallido';
+      return null;
+    }
+  },
+  {
+    nombre: 'Una property URL_WEB_APP ausente deja el mensaje sin enlaces, NO sin mensaje',
+    correr: () => {
+      // Regresión: `Config.URL_WEB_APP` se leía en la condición del `if`, fuera del try.
+      // Como `getPropiedad` lanza si la clave falta, una property sin cargar no dejaba al
+      // mensaje sin enlaces: se llevaba puesta a generarMensaje entera y el POD se quedaba
+      // sin ninguna alarma.
+      const { MessageFormatter, Config, logs } = conFormatter();
+      Config.getPropiedad = (clave) => { throw new Error(`Configuración faltante: '${clave}'`); };
+
+      let m = {};
+      agregar(m, 'WPC', 'Cliente A', 'Alarma X', { vCenter: 'Desconocido', cluster: 'Desconocido', target: 'Desconocido' }, [entrada(fecha('2026-08-01T10:00:00Z'))]);
+
+      let msg;
+      try {
+        msg = MessageFormatter.generarMensaje(m, []);
+      } catch (e) {
+        return `una property ausente no debería tumbar el mensaje: ${e.message}`;
+      }
+
+      if (msg.indexOf('Alarma X') === -1) return 'el mensaje debería seguir listando las alarmas';
+      if (msg.indexOf('📩') !== -1) return 'no debería publicar enlaces sin URL configurada';
+      if (!logs.some(l => l.indexOf('No se pudo resolver URL_WEB_APP') !== -1)) {
+        return 'debería quedar el aviso en el log';
+      }
       return null;
     }
   },
