@@ -4,6 +4,28 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y el proyecto se adhiere a [Semantic Versioning](https://semver.org/).
 
+## [10.11.4] - 2026-09-10
+
+Cierra el problema que v10.11.3 dejó a medias: el `<form>` que se autoenviaba no funciona
+dentro del iframe de Apps Script en **ninguna** de sus dos variantes.
+
+### Fixed
+- **La generación del borrador ya no depende de navegar el iframe (`WebApp.js`):** la página que devuelve `doGet` le pide el trabajo al servidor con `google.script.run` e inyecta la confirmación en el lugar, sin navegación de por medio.
+  - **Sin `target`**, el form navegaba el iframe donde Apps Script sirve la página hacia `/exec`, y esa URL se niega a ser embebida: el POST llegaba, el borrador se creaba, y el usuario veía `script.google.com refused to connect`. Era el estado hasta v10.11.2.
+  - **Con `target="_top"`** (v10.11.3), el iframe viene con `sandbox="... allow-top-navigation-by-user-activation"`: una navegación disparada desde `onload`, sin un clic real de por medio, queda bloqueada en silencio. La página se colgaba en "Generando borrador…" y, peor que antes, el borrador ya ni se creaba, porque el POST nunca salía.
+  - `google.script.run` esquiva las dos cosas y no obliga al operador a un segundo clic, que es lo único que habría hecho viable el `target="_top"`.
+
+### Changed
+- **`_generarBorrador` recibe el id y devuelve HTML como string**, en vez de recibir el evento y devolver un `HtmlOutput`. Lo consumen dos caminos: `generarBorradorDesdeWeb` (la llamada de `google.script.run`, que no puede devolver un `HtmlOutput`) y `doPost`.
+- **`doPost` se mantiene**, envolviendo ese string. Sigue siendo una forma válida de pedir la generación y es la que usan los enlaces servidos por deployments anteriores a este cambio.
+- **Nuevo `_avisoHTML()`** para los avisos cortos, que estaban repetidos textualmente en cuatro salidas distintas.
+
+### Security
+- El id se inyecta en la página como literal JSON y con los `<` escapados. Llega por la URL, así que es entrada del usuario: sin eso podía cerrar el `<script>` y colar markup.
+
+### Added
+- **Tests:** los 3 casos de `doGet` reescritos contra el mecanismo nuevo, más uno de inyección con un id malicioso. Verifican también que no vuelva el `<form>` ni el `target="_top"`, que son las dos vías que ya se sabe que no funcionan. Suite total: 172/172.
+
 ## [10.11.3] - 2026-09-10
 
 Primer bug que aparece al quedar el WebApp actualizado y sirviéndose desde su propio
