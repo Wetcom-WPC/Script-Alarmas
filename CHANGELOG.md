@@ -4,6 +4,20 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y el proyecto se adhiere a [Semantic Versioning](https://semver.org/).
 
+## [10.11.3] - 2026-09-10
+
+Primer bug que aparece al quedar el WebApp actualizado y sirviéndose desde su propio
+proyecto: el patrón `doGet`/`doPost` de v10.8.0 nunca había llegado a correr en producción.
+
+### Fixed
+- **La confirmación del borrador terminaba en "refused to connect" (`WebApp.js`):** al hacer clic en "Generar correo para ..." el borrador se creaba correctamente, pero en lugar de la pantalla de confirmación el navegador mostraba `script.google.com refused to connect`.
+  - Apps Script sirve el HTML de `doGet` dentro de un iframe anidado (`*.scriptusercontent.com`) embebido en la página `/exec`. El form que se autoenvía no declaraba `target`, así que navegaba **ese iframe** hacia `/exec`, y esa URL se niega a ser embebida. El POST llegaba igual al servidor —de ahí que el borrador apareciera en Gmail— y lo único que fallaba era renderizar la respuesta de `doPost`.
+  - Con `target="_top"` el form navega la pestaña entera y la confirmación se muestra como una página normal.
+  - **Por qué recién se ve ahora:** el patrón `doGet`/`doPost` lo introdujo v10.8.0, para que un GET dejara de mutar. Pero el deployment que atendía los enlaces siguió fijado a la versión 8, anterior a ese cambio (ver v10.11.1): el código estaba escrito y documentado, y no se estaba ejecutando en ningún lado. Sólo se volvió visible cuando producción pasó a servir su propio WebApp actualizado.
+
+### Added
+- **Tests:** 3 casos en `test/webapp.test.js`, stubeando `HtmlService` y `ScriptApp`. `doGet` no estaba cubierto precisamente por depender de esos dos servicios, pero la parte que arma el HTML es barata de testear y es donde vivía el bug: se verifica el `target="_top"`, que el id se reenvíe como POST y que sin id no se arme ningún form. `doPost` / `_generarBorrador` siguen fuera del alcance (integran Gmail, Drive y Cache reales). Suite total: 171/171.
+
 ## [10.11.2] - 2026-09-10
 
 Corrige una decisión de v10.11.1 y, de paso, un modo de falla que esa decisión estaba tapando.
