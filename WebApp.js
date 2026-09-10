@@ -18,7 +18,15 @@ function doGet(e) {
   return HtmlService.createHtmlOutput(`
     <html>
       <body onload="document.forms[0].submit()">
-        <form method="post" action="${ScriptApp.getService().getUrl()}">
+        <!--
+          target="_top" es imprescindible, no cosmetico. Apps Script sirve este HTML
+          dentro de un iframe anidado (*.scriptusercontent.com) embebido en la pagina
+          /exec. Sin target, el form navega ESE iframe hacia /exec, y esa URL se niega a
+          ser embebida: el POST llega al servidor y el borrador se crea, pero el usuario
+          ve "script.google.com refused to connect" en vez de la confirmacion.
+          Con _top navega la pestana entera y la respuesta de doPost se ve como pagina.
+        -->
+        <form method="post" target="_top" action="${ScriptApp.getService().getUrl()}">
           <input type="hidden" name="id" value="${MessageFormatter._escapeHTML(borradorId)}">
         </form>
         <p style="font-family: sans-serif; text-align: center; margin-top: 50px; color: #666;">Generando borrador…</p>
