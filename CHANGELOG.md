@@ -4,6 +4,28 @@ Todos los cambios notables en este proyecto serán documentados en este archivo.
 
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/), y el proyecto se adhiere a [Semantic Versioning](https://semver.org/).
 
+## [10.11.1] - 2026-09-10
+
+Cierra el desfasaje del WebApp de borradores que venía arrastrándose desde el hotfix del
+asunto `undefined` (v10.10.2). La causa raíz resultó ser de despliegue, no de código.
+
+### Fixed
+- **Cada entorno publica su propio WebApp (`config/Config.js`):** `URL_WEB_APP` era una constante única hardcodeada, la misma en las dos ramas, apuntando a un deployment de **alarmas-testing**. Los enlaces "Generar correo para ..." que publicaba **producción** abrían, por lo tanto, el WebApp del proyecto de testing.
+  - No era un detalle cosmético: el WebApp corre dentro del proyecto dueño del deployment y resuelve `DataRepository` contra la planilla a la que **ese** proyecto está atado. Los destinatarios de los borradores de clientes reales salían de la hoja "Correos Clientes" de testing.
+  - Ese deployment estaba además **fijado a la versión 8**, una foto del código anterior al rename `alarmaPricipal` → `alarmaPrincipal` (13399ae, 13/08). De ahí salía el asunto `undefined`. Una versión fijada **no se actualiza con `clasp push`**, y por eso ningún push movió el problema: el alias que dejó v10.10.2 en el payload fue lo que lo mantuvo funcionando.
+  - La versión 8 tampoco tenía nada del endurecimiento de v10.8.0 en adelante: sin `_esPayloadBorradorValido`, sin `doPost` (creaba el borrador dentro del `GET`), sin `_escapeHTML` sobre cliente y errores, y con `"wpc@wetcom.com"` hardcodeado en lugar de `Config.EMAIL_FALLBACK`. Todo eso figuraba como resuelto en este changelog y no estaba corriendo en ningún lado.
+  - `URL_WEB_APP` pasa a ser un getter sobre `esProduccion()`, con una constante por entorno, siguiendo el mismo patrón que `obtenerWebhookSlack()` e `ID_CARPETA_BORRADORES`. Ante una property `ENTORNO` ausente o ilegible cae al WebApp de **testing**, nunca al productivo — el mismo criterio de fail-safe que el resto del interruptor.
+  - Las URLs van en el código y no en Script Properties: no son secretos (el acceso al WebApp ya está restringido al dominio) y así quedan versionadas junto al resto.
+
+### Added
+- **Tests:** 4 casos nuevos en `test/entorno.test.js` (total 15): cada entorno resuelve su propio WebApp, los dos deployments son distintos, y una property rota cae al de testing. Suite total: 167/167.
+
+### Nota operativa
+- **alarmas-produccion** no tenía ningún deployment versionado (sólo el `@HEAD` automático). Se creó uno.
+- **alarmas-testing** conservó el id de deployment que ya tenía, republicado a una versión actual, para que los enlaces que ya estaban en Slack siguieran funcionando.
+- Si en el futuro hay que republicar, conviene reusar el id con `clasp create-deployment -i <deploymentId>`: saca una versión nueva sin cambiar la URL, así no hay que tocar `Config.js` ni se rompen los enlaces vigentes.
+- El alias `alarmaPricipal` que dejó v10.10.2 en el payload ya no es necesario para producción, pero conviene conservarlo mientras puedan quedar borradores viejos en Drive (se vencen a las 6 horas).
+
 ## [10.11.0] - 2026-09-10
 
 Validado primero en `alarmas-testing` y promovido a producción después de la verificación del NOC.
