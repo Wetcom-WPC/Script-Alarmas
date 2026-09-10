@@ -152,37 +152,48 @@ const CASOS = [
     }
   },
   {
-    nombre: 'doGet: el form que se autoenvia apunta a _top (si no, la respuesta no se puede mostrar)',
+    nombre: 'doGet: pide la generacion con google.script.run, sin navegar a ningun lado',
     correr: () => {
-      // Apps Script sirve este HTML dentro de un iframe anidado embebido en la pagina
-      // /exec. Sin target, el form navega ESE iframe hacia /exec, que se niega a ser
-      // embebida: el borrador se crea igual, pero el usuario ve "refused to connect".
+      // Las dos variantes con <form> que se autoenviaba fallaban: sin target el iframe
+      // navegaba a /exec (que se niega a ser embebida) y el usuario veia "refused to
+      // connect"; con target="_top" el sandbox del iframe bloquea la navegacion no
+      // disparada por un clic y la pagina se colgaba en "Generando borrador...".
       const html = renderDoGet('1Ru2A8ACFkvE8hiHSQnMuisFTcWh30Io_');
-      if (html.indexOf('<form') === -1) return 'doGet deberia devolver el form que reenvia el id';
-      if (html.indexOf('target="_top"') === -1) {
-        return 'el form no apunta a _top: la confirmacion va a fallar con "refused to connect"';
+
+      if (html.indexOf('google.script.run') === -1) return 'doGet deberia pedir la generacion por google.script.run';
+      if (html.indexOf('<form') !== -1) return 'volvio el form que se autoenvia: esa via no funciona dentro del iframe';
+      if (html.indexOf('target="_top"') !== -1) return 'no deberia intentar navegar el top: el sandbox lo bloquea';
+      return null;
+    }
+  },
+  {
+    nombre: 'doGet: le pasa el id recibido a generarBorradorDesdeWeb',
+    correr: () => {
+      // Un GET tiene que ser seguro de repetir: doGet no genera nada por si mismo, solo
+      // delega. La creacion vive en _generarBorrador.
+      const html = renderDoGet('ABC123');
+      if (html.indexOf('generarBorradorDesdeWeb("ABC123")') === -1) {
+        return 'deberia invocar generarBorradorDesdeWeb con el id recibido';
       }
       return null;
     }
   },
   {
-    nombre: 'doGet: reenvia el id como POST y no genera nada por si mismo',
+    nombre: 'doGet: un id con markup no puede cerrar el <script> de la pagina',
     correr: () => {
-      // Un GET tiene que ser seguro de repetir: un prefetch del navegador o una recarga no
-      // deberian generar un borrador de mas. La creacion vive en doPost.
-      const html = renderDoGet('ABC123');
-      if (html.indexOf('method="post"') === -1) return 'el form deberia reenviarse como POST';
-      if (html.indexOf('name="id"') === -1) return 'el form deberia llevar el id';
-      if (html.indexOf('ABC123') === -1) return 'el form deberia llevar el id recibido';
+      // El id llega por la URL, asi que es entrada del usuario.
+      const html = renderDoGet('</script><img src=x onerror=alert(1)>');
+      if (html.indexOf('</script><img') !== -1) return 'el id cerro el script: hay inyeccion';
+      if (html.indexOf('\\u003c/script') === -1) return 'el "<" del id deberia quedar escapado';
       return null;
     }
   },
   {
-    nombre: 'doGet: sin id devuelve el aviso de enlace invalido, sin form',
+    nombre: 'doGet: sin id devuelve el aviso de enlace invalido, sin llamar al servidor',
     correr: () => {
       const html = renderDoGet(undefined);
       if (html.indexOf('Enlace Inv') === -1) return 'deberia avisar que el enlace es invalido';
-      if (html.indexOf('<form') !== -1) return 'no deberia intentar reenviar nada sin id';
+      if (html.indexOf('google.script.run') !== -1) return 'no deberia pedir nada al servidor sin id';
       return null;
     }
   }
