@@ -600,6 +600,16 @@ function normalizarNumero(valorCrudo, valorMostrado) {
   if (typeof valorCrudo === "number" && !isNaN(valorCrudo)) return valorCrudo;
   const s = (valorMostrado === null || valorMostrado === undefined) ? "" : valorMostrado.toString().trim();
   if (s === "" || !/\d/.test(s)) return 0; // "Unlimited", "N/A", vacío...
+
+  // Un decimal ("5000,0" o "5000.0") hay que truncarlo, no limpiarlo: borrarle el
+  // separador lo convierte en 50000. Un separador seguido de 1 o 2 dígitos es decimal;
+  // los miles siempre van de a 3 ("5.000"), así que esos caen en el limpiado de abajo.
+  const decimal = s.match(/^(-?\d+)[.,]\d{1,2}$/);
+  if (decimal) {
+    const d = parseInt(decimal[1], 10);
+    return isNaN(d) ? 0 : d;
+  }
+
   const n = parseInt(s.replace(/[^\d-]/g, ""), 10);
   return isNaN(n) ? 0 : n;
 }
@@ -1166,6 +1176,7 @@ function procesarInfraestructuraClienteVeeam(cliente, emailDestino, rootFolderId
     if (archivosAProcesar.length === 0) throw new Error(`Sin archivos CSV válidos en la ruta`);
     
     let todasLasLicenciasCliente = [];
+    let erroresCliente = [];
 
     for (const file of archivosAProcesar) {
       console.log(`⏳ [${cliente}] Leyendo CSV: ${file.getName()}`);
@@ -1176,9 +1187,14 @@ function procesarInfraestructuraClienteVeeam(cliente, emailDestino, rootFolderId
       } else {
         throw new Error("Librería de parseo CSV no encontrada.");
       }
-      
-      const licenciasArchivo = analizarLicenciasVeeam(parsedData, cliente);
-      todasLasLicenciasCliente = todasLasLicenciasCliente.concat(licenciasArchivo);
+
+      const resultado = analizarLicenciasVeeam(parsedData, cliente);
+      todasLasLicenciasCliente = todasLasLicenciasCliente.concat(resultado.licencias);
+      resultado.errores.forEach(e => erroresCliente.push({
+        archivo: file.getName(),
+        servidor: e.servidor,
+        mensaje: e.mensaje
+      }));
     }
 
     let licenciasUnicas = [];
@@ -1191,16 +1207,29 @@ function procesarInfraestructuraClienteVeeam(cliente, emailDestino, rootFolderId
       }
     });
 
+    erroresCliente.forEach(e => {
+      console.error(`❌ [${cliente}] El extractor falló en ${e.servidor}: ${e.mensaje}`);
+      summaryReport.errores.push({
+        error: `Extracción Veeam falló: ${cliente} (${e.servidor})`,
+        detalle: `${e.mensaje} [${e.archivo}]`
+      });
+    });
+
     if (licenciasUnicas.length > 0) {
       console.log(`📧 Despachando reporte Veeam de ${cliente} a ${emailDestino} (${licenciasUnicas.length} licencias procesadas).`);
       enviarAlertaLicenciasVeeam(cliente, emailDestino, licenciasUnicas);
       enviarAlertaSlackVeeamLic(cliente, licenciasUnicas);
-    } else {
+    } else if (erroresCliente.length === 0) {
       console.warn(`⚠️ [${cliente}] Archivo procesado pero no se encontraron datos de licencias válidos.`);
       summaryReport.advertencias.push({ ticket: "-", problema: `[${cliente}] CSV vacío o formato inválido`, accion: "Revisar archivo en Drive" });
     }
-    
-    summaryReport.exitos.push({ mensaje: `*${cliente}*: Reporte Veeam OK` });
+
+    // Un cliente cuya extracción falló no cuenta como éxito.
+    if (erroresCliente.length === 0) {
+      summaryReport.exitos.push({ mensaje: `*${cliente}*: Reporte Veeam OK` });
+    } else if (licenciasUnicas.length > 0) {
+      summaryReport.exitos.push({ mensaje: `*${cliente}*: Reporte Veeam parcial (${erroresCliente.length} servidor/es con error)` });
+    }
     return { ruta: rutaLog, archivos: nombresArchivos.join("\n") };
 
   } catch (e) {
@@ -1214,8 +1243,12 @@ function normalizarColumnaVeeam(texto) {
   return texto.toString().trim().toLowerCase().replace(/[\s\-_]+/g, '');
 }
 
+/**
+ * @returns {{licencias: Array<Object>, errores: Array<{servidor: string, mensaje: string}>}}
+ *   Los errores son servidores donde el extractor falló (Status=ERROR en el CSV).
+ */
 function analizarLicenciasVeeam(parsedData, clienteFallback) {
-  if (!parsedData || parsedData.length < 2) return [];
+  if (!parsedData || parsedData.length < 2) return { licencias: [], errores: [] };
 
   const rawHeaders = parsedData[0];
   const headers = rawHeaders.map(h => normalizarColumnaVeeam(h));
@@ -1246,23 +1279,42 @@ function analizarLicenciasVeeam(parsedData, clienteFallback) {
 
   if (idx.edition === -1 || idx.licensed === -1 || idx.used === -1) {
     console.warn("⚠️ Faltan columnas críticas en el CSV de Veeam. Columnas encontradas:", rawHeaders);
-    return [];
+    return {
+      licencias: [],
+      errores: [{
+        servidor: clienteFallback,
+        mensaje: `Faltan columnas críticas en el CSV. Columnas encontradas: ${rawHeaders.join(", ")}`
+      }]
+    };
   }
 
   const hoy = new Date();
   hoy.setHours(0,0,0,0);
   const licencias = [];
+  const errores = [];
 
   for (let i = 1; i < parsedData.length; i++) {
     const row = parsedData[i];
     if (!row || row.length < 2) continue;
 
+    const server = idx.server !== -1 ? (row[idx.server] || clienteFallback) : clienteFallback;
+    const status = idx.status !== -1 ? (row[idx.status] || "") : "";
+
+    // El extractor marca con Status=ERROR los servidores donde falló, y deja el motivo en
+    // WorkloadType. Sin esto, un cliente donde la extracción falló se ve idéntico a uno
+    // que directamente no subió nada.
+    if (status.toString().trim().toUpperCase() === "ERROR") {
+      errores.push({
+        servidor: server,
+        mensaje: (idx.workload !== -1 ? row[idx.workload] : "") || "Sin detalle"
+      });
+      continue;
+    }
+
     const edition = (row[idx.edition] || "").toString().trim();
     if (!edition) continue;
 
-    const server = idx.server !== -1 ? (row[idx.server] || clienteFallback) : clienteFallback;
     const type = idx.type !== -1 ? (row[idx.type] || "Desconocido") : "Desconocido";
-    const status = idx.status !== -1 ? (row[idx.status] || "") : "";
     const workload = idx.workload !== -1 ? (row[idx.workload] || "General") : "General";
     
     let rawUsed = row[idx.used];
@@ -1313,16 +1365,32 @@ function analizarLicenciasVeeam(parsedData, clienteFallback) {
     });
   }
 
-  return licencias;
+  return { licencias, errores };
+}
+
+/**
+ * Descarta las filas '0 de 0 (Sockets)' redundantes: si el servidor ya reporta uso real en
+ * otra fila, esa no aporta nada. Se aplica ANTES de clasificar porque esas filas heredan la
+ * fecha de vencimiento de la licencia y si no dispararían alertas por duplicado.
+ */
+function filtrarSocketsRedundantes(licencias) {
+  const servidoresConUso = new Set(licencias.filter(a => a.usadas > 0).map(a => a.servidor));
+  return licencias.filter(a => !(
+    a.usadas === 0 && a.total === 0 && a.workload === 'Sockets' && servidoresConUso.has(a.servidor)
+  ));
 }
 
 function enviarAlertaLicenciasVeeam(cliente, destinatarioRaw, todasLasLicencias) {
   const emailsAEnviar = destinatarioRaw.toString().split(',').map(e => e.trim()).filter(e => e !== "").join(',');
-  
-  const vencidas = todasLasLicencias.filter(a => a.usadas > 0 && a.diasRestantes < 0);
-  const proximas = todasLasLicencias.filter(a => a.usadas > 0 && a.diasRestantes >= 0 && a.diasRestantes <= VEEAM_LIC_DIAS_UMBRAL);
-  const sanasEnUso = todasLasLicencias.filter(a => a.usadas > 0 && a.diasRestantes > VEEAM_LIC_DIAS_UMBRAL);
-  const sinUso = todasLasLicencias.filter(a => a.usadas === 0);
+
+  const licencias = filtrarSocketsRedundantes(todasLasLicencias);
+
+  // El vencimiento manda esté o no la licencia en uso: una licencia paga que vence sin
+  // usarse le importa igual al equipo y a quien la vendió.
+  const vencidas = licencias.filter(a => a.diasRestantes < 0);
+  const proximas = licencias.filter(a => a.diasRestantes >= 0 && a.diasRestantes <= VEEAM_LIC_DIAS_UMBRAL);
+  const sanasEnUso = licencias.filter(a => a.usadas > 0 && a.diasRestantes > VEEAM_LIC_DIAS_UMBRAL);
+  const sinUso = licencias.filter(a => a.usadas === 0 && a.diasRestantes > VEEAM_LIC_DIAS_UMBRAL);
 
   const sortServidorDias = (a, b) => {
     if (a.servidor < b.servidor) return -1;
@@ -1340,18 +1408,18 @@ function enviarAlertaLicenciasVeeam(cliente, destinatarioRaw, todasLasLicencias)
   let colorHeader = "#5cb85c"; // Verde
   let iconoHeader = "✅";
   let statusTxt = "Auditoría Exitosa";
-  let situacionTxt = "Todas las licencias de Veeam en uso se encuentran vigentes.";
+  let situacionTxt = "Todas las licencias de Veeam se encuentran vigentes.";
 
   if (vencidas.length > 0) {
     colorHeader = "#d9534f";
     iconoHeader = "❌";
     statusTxt = "Licencias Veeam Vencidas";
-    situacionTxt = "Se requiere acción inmediata para renovar licencias expiradas en uso.";
+    situacionTxt = "Se requiere acción inmediata para renovar licencias expiradas.";
   } else if (proximas.length > 0) {
     colorHeader = "#f0ad4e";
     iconoHeader = "⚠️";
     statusTxt = "Atención: Licencias Veeam Próximas a Vencer";
-    situacionTxt = "Se han detectado licencias en uso que vencerán en el corto plazo.";
+    situacionTxt = "Se han detectado licencias que vencerán en el corto plazo.";
   }
 
   const fechaHoy = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "dd/MM/yyyy");
@@ -1367,6 +1435,9 @@ function enviarAlertaLicenciasVeeam(cliente, destinatarioRaw, todasLasLicencias)
 
   const formatUso = (u, t, w) => {
     let un = typeof formatearNumero === "function" ? formatearNumero(u) : u;
+    // El JSON de "Create Report" trae el consumo pero no el total contratado. Mostrar
+    // "7974 de 0" parece un dato roto; sin total mostramos sólo el consumo.
+    if (!t) return `${un} (${w})`;
     let tn = typeof formatearNumero === "function" ? formatearNumero(t) : t;
     return `${un} de ${tn} (${w})`;
   };
@@ -1405,27 +1476,16 @@ function enviarAlertaLicenciasVeeam(cliente, destinatarioRaw, todasLasLicencias)
     return html;
   };
 
-  cuerpoHtml += formatTable("CRÍTICO - LICENCIAS VENCIDAS (EN USO)", vencidas, "#d9534f", "white", "#fdf7f7", "#761c19");
+  cuerpoHtml += formatTable("CRÍTICO - LICENCIAS VENCIDAS", vencidas, "#d9534f", "white", "#fdf7f7", "#761c19");
   cuerpoHtml += formatTable("ATENCIÓN - PRÓXIMAS A VENCER", proximas, "#f0ad4e", "white", "#fcf8f2", "#8a6d3b");
-  
+
   if (sanasEnUso.length > 0 || sinUso.length > 0) {
-    let bgH = todoOK ? "#5cb85c" : "#e2e3e5"; 
+    let bgH = todoOK ? "#5cb85c" : "#e2e3e5";
     let colH = todoOK ? "white" : "#495057";
     let bgS = todoOK ? "#f9fdf9" : "#f8f9fa";
     let colS = todoOK ? "#2b542c" : "#495057";
 
-    const servidoresArriba = new Set([...vencidas, ...proximas, ...sanasEnUso].map(x => x.servidor));
-    const sinUsoFiltrado = sinUso.filter(a => {
-      // Filtrar '0 de 0 (Sockets)' si el servidor ya aparece arriba reportando uso
-      if (a.usadas === 0 && a.total === 0 && a.workload === 'Sockets' && servidoresArriba.has(a.servidor)) {
-        return false;
-      }
-      return true;
-    });
-
-    if (sanasEnUso.length > 0 || sinUsoFiltrado.length > 0) {
-      cuerpoHtml += formatTable("SALUDABLE - ESTADO OK / NO UTILIZADAS", sanasEnUso.concat(sinUsoFiltrado), bgH, colH, bgS, colS);
-    }
+    cuerpoHtml += formatTable("SALUDABLE - ESTADO OK / NO UTILIZADAS", sanasEnUso.concat(sinUso), bgH, colH, bgS, colS);
   }
 
   cuerpoHtml += `<p style="font-size: 14px; margin-top: 20px;">Este reporte es meramente informativo.</p></div><p style="margin-top: 25px; font-size: 12px; color: #666;">Saludos,<br><b>Wetcom Proactive Center</b></p></div>`;
@@ -1438,12 +1498,13 @@ function enviarAlertaLicenciasVeeam(cliente, destinatarioRaw, todasLasLicencias)
 
 function enviarAlertaSlackVeeamLic(cliente, alertas) {
   if (typeof SLACK_WEBHOOK_URL === 'undefined' || typeof sendSlackMessage !== 'function') return;
-  const vencidas = alertas.filter(a => a.usadas > 0 && a.diasRestantes < 0);
-  const proximas = alertas.filter(a => a.usadas > 0 && a.diasRestantes >= 0 && a.diasRestantes <= VEEAM_LIC_DIAS_UMBRAL);
-  if (vencidas.length === 0 && proximas.length === 0) return; 
-  
+  const licencias = filtrarSocketsRedundantes(alertas);
+  const vencidas = licencias.filter(a => a.diasRestantes < 0);
+  const proximas = licencias.filter(a => a.diasRestantes >= 0 && a.diasRestantes <= VEEAM_LIC_DIAS_UMBRAL);
+  if (vencidas.length === 0 && proximas.length === 0) return;
+
   let msg = `*Reporte de Licencias Veeam - ${cliente}*\n`;
-  if (vencidas.length > 0) msg += `🔴 *CRÍTICO:* ${vencidas.length} licencias vencidas en uso.\n`;
+  if (vencidas.length > 0) msg += `🔴 *CRÍTICO:* ${vencidas.length} licencias vencidas.\n`;
   if (proximas.length > 0) msg += `🟡 *WARNING:* ${proximas.length} próximas a vencer.\n`;
   SlackService.enviarNotificacionGuardia(msg);
 }
